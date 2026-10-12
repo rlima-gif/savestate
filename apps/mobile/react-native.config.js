@@ -2,8 +2,9 @@ module.exports = {
   dependencies: {
     expo: {
       platforms: {
-        android: null,
-        ios: null,
+        android: {
+          packageImportPath: 'import expo.modules.ExpoModulesPackage;',
+        },
       },
     },
   },
