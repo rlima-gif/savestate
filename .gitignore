@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Cloudflare Wrangler
+.wrangler/
+.dev.vars
+
+# Environment
+.env
+.env.local
+.env.production
+.env.staging
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
+
+# Coverage & test
+coverage/
+.nyc_output/
