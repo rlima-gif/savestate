@@ -42,14 +42,14 @@ export async function askGeminiAssistant(
   req: AssistantChatRequest,
   options: GeminiServiceOptions = {}
 ): Promise<AssistantChatResponse> {
-  const modelName = options.model || 'gemini-3.5-flash-lite';
+  const modelName = options.model || 'gemini-2.5-flash';
   const apiKey = options.apiKey;
   const guideLinks = generateExternalSearchLinks(req.context.gameTitle, req.message);
 
   // Fallback when API key is not configured
   if (!apiKey) {
     return {
-      answer: `[Modo de Demonstração / Chave Offline]\n\nVocê está explorando **${req.context.gameTitle}** no objetivo: *"${req.context.currentObjective || req.context.currentChapter || 'Campanha principal'}"*.\n\nPara ativar respostas em tempo real com visão computacional, configure a chave \`GEMINI_API_KEY\` no backend Cloudflare Workers.\n\nEnquanto isso, você pode consultar diretamente os guias e detonados recomendados abaixo:`,
+      answer: `[Assistente de IA Indisponível - Chave não configurada]\n\nA inferência em tempo real com visão e texto do Google Gemini está temporariamente indisponível porque a chave \`GEMINI_API_KEY\` não foi configurada no ambiente Cloudflare Workers.\n\nContexto do jogo: **${req.context.gameTitle}** (${req.context.currentObjective || req.context.currentChapter || 'Campanha principal'}).\n\nVocê pode consultar os links externos de detonados e guias da comunidade abaixo:`,
       hintTier: req.context.hintTier,
       isFallback: true,
       externalSearchLinks: guideLinks,

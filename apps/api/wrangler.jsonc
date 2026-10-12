@@ -17,7 +17,7 @@
   ],
   "vars": {
     "ENVIRONMENT": "development",
-    "GEMINI_MODEL": "gemini-3.5-flash-lite",
+    "GEMINI_MODEL": "gemini-2.5-flash",
     "AI_DAILY_RATE_LIMIT": 30,
     "AI_FEATURE_ENABLED": "true"
   },
@@ -26,7 +26,7 @@
       "name": "savestate-api-staging",
       "vars": {
         "ENVIRONMENT": "staging",
-        "GEMINI_MODEL": "gemini-3.5-flash-lite",
+        "GEMINI_MODEL": "gemini-2.5-flash",
         "AI_DAILY_RATE_LIMIT": 30,
         "AI_FEATURE_ENABLED": "true"
       },
@@ -43,7 +43,7 @@
       "name": "savestate-api-production",
       "vars": {
         "ENVIRONMENT": "production",
-        "GEMINI_MODEL": "gemini-3.5-flash-lite",
+        "GEMINI_MODEL": "gemini-2.5-flash",
         "AI_DAILY_RATE_LIMIT": 50,
         "AI_FEATURE_ENABLED": "true"
       },

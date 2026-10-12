@@ -98,7 +98,8 @@ export async function searchCatalog(
   query: string,
   page = 1,
   pageSize = 20,
-  rawgApiKey?: string
+  rawgApiKey?: string,
+  allowMock = false
 ): Promise<CatalogSearchResponse> {
   // If RAWG API key is configured, query RAWG
   if (rawgApiKey) {
@@ -136,15 +137,45 @@ export async function searchCatalog(
           pageSize,
           hasMore: Boolean(data.next),
           provider: 'rawg',
+          isLive: true,
           attribution: 'Dados providos pela RAWG Video Games Database (https://rawg.io)',
         };
       }
     } catch (err) {
-      console.warn('RAWG API request failed, falling back to local catalog:', err);
+      console.warn('RAWG API request failed:', err);
+      if (!allowMock) {
+        return {
+          results: [],
+          total: 0,
+          page,
+          pageSize,
+          hasMore: false,
+          provider: 'unavailable',
+          isLive: false,
+          message: 'Falha temporária ao comunicar com o catálogo da RAWG API.',
+          attribution: 'RAWG indisponível',
+        };
+      }
     }
   }
 
-  // Fallback to local curated mock catalog
+  // If no credentials and mock is not requested, return honest unavailable state
+  if (!allowMock) {
+    return {
+      results: [],
+      total: 0,
+      page,
+      pageSize,
+      hasMore: false,
+      provider: 'unavailable',
+      isLive: false,
+      message:
+        'Busca online de catálogo indisponível (chave RAWG_API_KEY não configurada no servidor). Jogos podem ser cadastrados manualmente com capa e metadados na aba Biblioteca (+ Adicionar Jogo).',
+      attribution: 'Catálogo online não configurado',
+    };
+  }
+
+  // Fallback to local curated mock catalog only when explicitly requested
   const normalizedQuery = query.toLowerCase().trim();
   const filtered = normalizedQuery
     ? MOCK_GAMES.filter((g) =>
@@ -163,6 +194,7 @@ export async function searchCatalog(
     pageSize,
     hasMore: startIndex + pageSize < filtered.length,
     provider: 'mock',
+    isLive: false,
     attribution: 'Catálogo de demonstração local SaveState',
   };
 }

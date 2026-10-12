@@ -8,8 +8,9 @@ catalogRouter.get('/catalog/search', async (c) => {
   const query = c.req.query('q') || '';
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
   const pageSize = Math.min(40, Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)));
+  const allowMock = c.req.query('mock') === 'true' || c.env.ENVIRONMENT === 'test';
 
-  const result = await searchCatalog(query, page, pageSize, c.env.RAWG_API_KEY);
+  const result = await searchCatalog(query, page, pageSize, c.env.RAWG_API_KEY, allowMock);
   return c.json(result);
 });
 

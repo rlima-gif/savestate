@@ -64,6 +64,12 @@ export default function DescobrirScreen() {
     try {
       const res = await ApiService.searchCatalog(searchQuery);
       setSearchResults(res.results);
+      if (res.provider === 'unavailable') {
+        setSearchError(
+          res.message ||
+            'Catálogo online indisponível (chave da RAWG API não configurada no servidor). Adicione seus jogos manualmente na Biblioteca.'
+        );
+      }
     } catch (err: any) {
       setSearchError(err.message || 'Falha ao buscar no catálogo.');
     } finally {

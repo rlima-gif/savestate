@@ -5,7 +5,8 @@ import {
   CatalogGameDetails,
 } from '@savestate/shared';
 
-const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8787';
+const DEFAULT_API_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'https://savestate-api-staging.safeloot.workers.dev';
 
 export const ApiService = {
   getBaseUrl(): string {

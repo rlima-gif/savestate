@@ -1,7 +1,7 @@
 export interface CatalogGameSummary {
   id: string; // provider prefixed or unique ID
   providerId: number;
-  provider: 'rawg' | 'igdb' | 'mock';
+  provider: 'rawg' | 'igdb' | 'mock' | 'unavailable';
   title: string;
   coverUrl?: string;
   releaseDate?: string;
@@ -31,6 +31,8 @@ export interface CatalogSearchResponse {
   page: number;
   pageSize: number;
   hasMore: boolean;
-  provider: 'rawg' | 'igdb' | 'mock';
+  provider: 'rawg' | 'igdb' | 'mock' | 'unavailable';
+  isLive?: boolean;
+  message?: string;
   attribution: string;
 }
