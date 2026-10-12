@@ -34,7 +34,7 @@
         {
           "binding": "DB",
           "database_name": "savestate-db-staging",
-          "database_id": "placeholder-staging-d1-id",
+          "database_id": "4138559b-b8e8-4a34-acf3-dda3971bd2b3",
           "migrations_dir": "migrations"
         }
       ]

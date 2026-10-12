@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health';
 import { catalogRouter } from './routes/catalog';
 import { assistantRouter } from './routes/assistant';
 import { guidesRouter } from './routes/guides';
+import { integrationsRouter } from './routes/integrations';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -35,5 +36,6 @@ app.route('/', healthRouter);
 app.route('/api', catalogRouter);
 app.route('/api', assistantRouter);
 app.route('/api', guidesRouter);
+app.route('/api', integrationsRouter);
 
 export default app;

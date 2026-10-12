@@ -70,6 +70,10 @@ export default function RootLayout() {
           name="modal/device-edit"
           options={{ presentation: 'modal', title: 'Configurar Dispositivo' }}
         />
+        <Stack.Screen
+          name="modal/sync-integrations"
+          options={{ presentation: 'modal', title: 'Sincronizar Integrações' }}
+        />
       </Stack>
     </SafeAreaProvider>
   );

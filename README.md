@@ -104,11 +104,19 @@ pnpm api:dev
 ```
 A API iniciará em `http://localhost:8787`. Você pode testar o endpoint de saúde em `http://localhost:8787/health`.
 
+> 🌐 **Backend Staging Online:** O ambiente de homologação está deployed e funcional no Cloudflare Workers em:  
+> **`https://savestate-api-staging.safeloot.workers.dev`**  
+> Teste o health check ao vivo: `https://savestate-api-staging.safeloot.workers.dev/health`
+
 ### 5. Iniciar o App Mobile (Expo)
 ```bash
 pnpm mobile:start
 ```
-Use o Expo Go ou gere uma Development Build conectando seu dispositivo Android ou emulador.
+Para testar o empacotamento completo de bytecode Hermes Android:
+```bash
+cd apps/mobile
+npx expo export --platform android
+```
 
 ---
 

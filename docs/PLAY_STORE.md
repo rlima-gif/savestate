@@ -12,6 +12,9 @@ Este documento reúne todas as informações, textos em Português do Brasil, de
 - **ID de Pré-visualização (Preview ID):** `com.savestate.app.preview`
 - **Categoria:** Entretenimento / Jogos (Ferramentas de Jogos)
 - **Classificação Indicativa Recomendada:** Livre / 10+ (Ferramenta de organização)
+- **Versão Alvo do Android (Target SDK):** `targetSdkVersion: 35` (Android 15) — em conformidade com as diretrizes do Google Play Console para 2026.
+- **Ícone do Aplicativo:** 1024x1024 PNG de alta resolução gerado em `apps/mobile/assets/icon.png`, `adaptive-icon.png` e `splash-icon.png`.
+- **Contato do Desenvolvedor:** Deve ser preenchido pelo proprietário na Play Console com seu e-mail de suporte real e URL do site/política de privacidade.
 
 ### Descrição Curta (Máx. 80 caracteres)
 > Organize seus jogos, nunca esqueça onde parou e tire dúvidas com IA gamer.

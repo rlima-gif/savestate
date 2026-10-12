@@ -117,7 +117,19 @@ export default function AjustesScreen() {
 
       {/* Backup and Data Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionHeader}>Backup e Exportação</Text>
+        <Text style={styles.sectionHeader}>Importação & Backup</Text>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/modal/sync-integrations')}
+        >
+          <Ionicons name="sync-outline" size={22} color={colors.dark.primary} />
+          <View style={styles.menuItemTextContainer}>
+            <Text style={styles.menuItemTitle}>Sincronizar Steam & RetroAchievements</Text>
+            <Text style={styles.menuItemSub}>Importe horas jogadas e jogos de perfis públicos</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.dark.textMuted} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.menuItem} onPress={handleExportJson}>
           <Ionicons name="cloud-download-outline" size={22} color={colors.dark.accent} />
           <View style={styles.menuItemTextContainer}>

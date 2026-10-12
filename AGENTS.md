@@ -55,6 +55,14 @@ Todos os comandos devem ser executados a partir da raiz do monorepo:
   ```bash
   cd apps/api && npx wrangler d1 migrations apply savestate-db --local
   ```
+- **Auditoria de compatibilidade Expo/Android:**
+  ```bash
+  cd apps/mobile && npx expo-doctor
+  ```
+- **Exportação e verificação do bundle Hermes Android:**
+  ```bash
+  cd apps/mobile && npx expo export --platform android
+  ```
 
 ---
 
@@ -62,7 +70,7 @@ Todos os comandos devem ser executados a partir da raiz do monorepo:
 
 - **`GEMINI_API_KEY`**: Chave da API do Google Gemini (configurada como segredo no Cloudflare Workers via `wrangler secret put GEMINI_API_KEY`). **O aplicativo funciona normalmente sem a chave**, ativando o modo de demonstração com links para guias da comunidade.
 - **`RAWG_API_KEY`**: Chave pública/gratuita da API RAWG para busca online de catálogo. Quando ausente, o serviço utiliza o catálogo local embutido de alta fidelidade sem quebrar as requisições.
-- **`EXPO_PUBLIC_API_URL`**: URL pública do worker Cloudflare. Emulador Android aponta para `http://10.0.2.2:8787`. Em produção, aponta para o domínio do worker.
+- **`EXPO_PUBLIC_API_URL`**: URL pública do worker Cloudflare. Emulador Android aponta para `http://10.0.2.2:8787`. Em staging/produção, aponta para `https://savestate-api-staging.safeloot.workers.dev`.
 
 ---
 

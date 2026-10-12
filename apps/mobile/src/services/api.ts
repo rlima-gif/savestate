@@ -84,4 +84,34 @@ export const ApiService = {
 
     return response.json();
   },
+
+  async syncSteam(steamId: string): Promise<any> {
+    const response = await fetch(`${DEFAULT_API_URL}/api/integrations/steam/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steamId }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro ao sincronizar com a Steam.');
+    }
+    return data;
+  },
+
+  async syncRetroAchievements(username: string, webApiKey?: string): Promise<any> {
+    const response = await fetch(`${DEFAULT_API_URL}/api/integrations/retroachievements/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, webApiKey }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro ao sincronizar com RetroAchievements.');
+    }
+    return data;
+  },
 };

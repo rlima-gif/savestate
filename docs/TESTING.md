@@ -31,6 +31,9 @@ pnpm test
 - **`catalog.test.ts`:**
   - Valida rota de busca com paginação e o catálogo mock de alta fidelidade embutido.
   - Detalhes de jogos e resposta HTTP 404 para identificadores inexistentes.
+- **`integrations.test.ts`:**
+  - Validação de entrada para sincronização de perfis Steam e RetroAchievements.
+  - Tratamento de parâmetros ausentes e JSON malformado.
 - **`assistant.test.ts`:**
   - Rejeição de payloads malformados com HTTP 400.
   - Comportamento de desativação emergencial com chave mestra (`AI_FEATURE_ENABLED=false`) retornando HTTP 503.
@@ -42,6 +45,24 @@ pnpm test
 - **`sqlite-schema.test.ts`:**
   - Verificação das cláusulas SQL de criação das tabelas `games`, `owned_copies`, `playthroughs`, `sessions`, `checklists`, `devices` e `active_timer`.
   - Verificação de integridade referencial com chaves estrangeiras e `ON DELETE CASCADE`.
+
+---
+
+## 🔍 Validação de Empacotamento Metro & Compatibilidade Android
+
+Além dos testes unitários, o monorepo foi submetido a testes de empacotamento real para Android:
+1. **Auditoria Expo Doctor:**
+   - Comando: `npx expo-doctor` executado em `apps/mobile`.
+   - Resultado: **18/18 verificações aprovadas**, confirmando compatibilidade de dependências e ausência de conflitos nativos.
+2. **Exportação de Bytecode Hermes Android:**
+   - Comando: `npx expo export --platform android` em `apps/mobile`.
+   - Resultado: **1043 módulos empacotados com sucesso** gerando bundle Hermes compilado (`3.28 MB` em `.hbc`) e 42 assets sem nenhum erro.
+3. **Pré-compilação Nativa Android:**
+   - Comando: `npx expo prebuild --platform android --no-install`.
+   - Resultado: Geração limpa de `android/app/build.gradle` com `targetSdkVersion: 35` (Android 15) compatível com os requisitos da Google Play.
+4. **Smoke Tests da API Staging em Produção:**
+   - Endpoint: `https://savestate-api-staging.safeloot.workers.dev`.
+   - Verificação via internet: `GET /health` (retornou HTTP 200, `d1Connected: true`) e `GET /api/catalog/search?q=celeste` (retornou HTTP 200 com resultados normalizados).
 
 ---
 

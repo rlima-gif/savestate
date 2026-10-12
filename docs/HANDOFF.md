@@ -10,7 +10,9 @@ Este documento foi elaborado para permitir a transição imediata e transparente
 - **Repositório Git:** Inicializado e versionado com commits estruturados.
 - **Estrutura de Monorepo:** pnpm workspaces (`packages/shared`, `apps/api`, `apps/mobile`).
 - **Estado de Compilação:** 100% dos pacotes compilando sem erros em modo estrito de TypeScript (`typecheck` com 0 erros).
-- **Cobertura de Testes:** 21 testes unitários automatizados cobrindo schemas, regras de negócio de recomendação, backup round-trip, endpoints da API, cronômetro persistente e esquemas SQLite.
+- **Cobertura de Testes:** 24 testes unitários automatizados cobrindo schemas, regras de negócio de recomendação, backup round-trip, endpoints da API (incluindo rotas de integração Steam/RetroAchievements), cronômetro persistente e esquemas SQLite.
+- **Backend Staging em Produção:** Ativo e verificado em `https://savestate-api-staging.safeloot.workers.dev` (Cloudflare D1 ID: `4138559b-b8e8-4a34-acf3-dda3971bd2b3`).
+- **Verificação Android:** `npx expo-doctor` aprovado (18/18 checks). Exportação Metro para Android bem-sucedida (1043 módulos, 3.28 MB em bytecode Hermes `.hbc`).
 
 ---
 
@@ -21,25 +23,29 @@ Este documento foi elaborado para permitir a transição imediata e transparente
    - Schemas Zod de validação runtime.
    - Motor transparente de recomendações ponderado por prioridade, tempo de sessão e vencimento de assinaturas.
    - Sistema de exportação e restauração de backup JSON e planilhas CSV com UTF-8 BOM.
+   - Normalizadores de dados da Steam (XML comunitário e Web API) e RetroAchievements.
    - Templates de prompt em Português do Brasil com proteção anti-spoiler e anti-injeção de prompt.
 
 2. **`apps/api` (Cloudflare Workers + D1):**
    - Roteador Hono com CORS e tratamento global de erros.
-   - Endpoint de saúde: `GET /health`.
+   - Endpoint de saúde: `GET /health` (valida conexão com D1).
    - Endpoint de busca de catálogo: `GET /api/catalog/search` e `GET /api/catalog/games/:id` com suporte a RAWG e fallback em catálogo local de alta fidelidade.
-   - Endpoint de assistente com IA: `POST /api/assistant/chat` integrando Google Gemini (`gemini-3.5-flash-lite` / `gemini-3.8-flash`) com suporte a texto e visão (fotos e screenshots), limites diários por IP, chave mestre de interrupção e fallback automático para guias da comunidade.
+   - Endpoint de assistente com IA: `POST /api/assistant/chat` integrando Google Gemini (`gemini-3.5-flash-lite` / `gemini-3.8-flash`) com suporte a texto e visão (fotos e screenshots), limites diários por IP via D1, chave mestre de interrupção e fallback automático para guias da comunidade.
+   - Endpoints de sincronização de biblioteca: `POST /api/integrations/steam/sync` e `POST /api/integrations/retroachievements/sync`.
    - Endpoint de guias: `GET /api/guides/search`.
-   - Migração SQL do Cloudflare D1 (`migrations/0001_init.sql`).
+   - Migração SQL do Cloudflare D1 aplicada localmente e no banco de staging (`migrations/0001_init.sql`).
 
 3. **`apps/mobile` (React Native Expo):**
    - Aplicação nativa com Expo Router e tema de alto contraste em Português do Brasil.
+   - Ícones de alta resolução 1024x1024 substituindo placeholders (`icon.png`, `adaptive-icon.png`, `splash-icon.png`).
    - Banco de dados local `expo-sqlite` com repositórios desacoplados (`GameRepository`, `PlaythroughRepository`, `SessionRepository`, `ChecklistRepository`, `DeviceRepository`).
    - Tela **Biblioteca:** Filtros por status (Backlog, Jogando, Pausado, Zerado, 100%, Abandonado), busca e alternância Lista/Grade.
    - Tela **Continuar Jogando:** Destaque da campanha em andamento, capítulo atual, próximo objetivo imediato, "Nota para o Meu Eu do Futuro" e cronômetro de sessão persistente baseado em timestamp com proteção contra esquecimento (&gt;12h).
    - Tela **Descobrir:** Recomendações inteligentes divididas por tempo de sessão (&lt;30m, 1h-2h, &gt;2h) e busca de catálogo com inclusão em 1 clique.
    - Tela **Assistente Gamer:** Interface de chat interativa com seleção de nível de dica (Leve, Detalhada, Solução Completa), captura de foto pela câmera, seleção de screenshots na galeria e links para guias externos.
-   - Tela **Ajustes:** Estatísticas detalhadas de tempo jogado e títulos zerados, exportação de backup JSON e planilha CSV com compartilhamento no Android, e cadastro de configurações de dispositivos de hardware.
-   - Modais: Cadastro manual de jogos, registro manual de tempo e configuração de aparelhos.
+   - Tela **Ajustes:** Estatísticas detalhadas de tempo jogado e títulos zerados, exportação de backup JSON e planilha CSV com compartilhamento no Android, cadastro de dispositivos de hardware e modal de sincronização da Steam e RetroAchievements (`/modal/sync-integrations`).
+   - Modais: Cadastro manual de jogos, registro manual de tempo, configuração de aparelhos e sincronização de contas externas.
+   - Configuração de build nativa para `targetSdkVersion: 35` (Android 15) no `app.json`.
    - Perfis de compilação no `eas.json` para Preview APK (`com.savestate.app.preview`) e Production AAB (`com.savestate.app`).
 
 4. **Automações e CI/CD (`.github/workflows`):**
@@ -69,16 +75,30 @@ pnpm api:dev
 
 # Iniciar app mobile Expo
 pnpm mobile:start
+
+# Exportar bundle Hermes Android
+cd apps/mobile && npx expo export --platform android
 ```
 
 ---
 
-## 🎯 4. Ações Pendentes para Publicação na Google Play (Ações do Proprietário)
+## ⚠️ 4. Estado das Ferramentas Locais & Bloqueios
+
+- **Ambiente Local (Windows Host):** O ambiente do host não possui Java SDK 17+ nem Android SDK (`adb`, `gradle` ausentes no PATH). Por isso, builds nativas locais standalone (`gradlew assembleRelease`) dependem do GitHub Actions ou da instalação do Android Studio.
+- **EAS CLI:** O comando `eas build` requer autenticação do desenvolvedor (`eas login`).
+- **Repositório Git Remoto:** O repositório Git local possui commits completos, mas ainda não possui `git remote origin` configurado.
+- **Chave de IA em Produção:** O worker de staging está ativo com fallback de guias da comunidade. Para ativar inferência real do Gemini em staging/produção, configure a chave: `npx wrangler secret put GEMINI_API_KEY`.
+
+---
+
+## 🎯 5. Ações Pendentes para Publicação na Google Play (Ações do Proprietário)
 
 1. **Conta de Desenvolvedor Google Play:** Efetuar o pagamento da taxa única de \$25 da Google Play Console.
-2. **Chave de Assinatura (Upload Keystore):** Gerar ou vincular o Keystore de upload no Google Play App Signing via `eas credentials`.
-3. **Imagens Promocionais:** Capturar screenshots do aplicativo em resolução mínima de 1080x1920 e criar o banner promocional (1024x500).
-4. **Hospedar Política de Privacidade:** Publicar o texto de privacidade disponibilizado em `docs/PLAY_STORE.md` em um domínio público (ex: página no GitHub Pages ou Cloudflare Pages).
-5. **Configurar Segredos de Produção no Cloudflare:**
-   - `wrangler secret put GEMINI_API_KEY --env production`
-   - `wrangler secret put RAWG_API_KEY --env production`
+2. **Vincular Repositório GitHub:** Criar repositório no GitHub e executar `git remote add origin <url>` e `git push -u origin master`.
+3. **Chave de Assinatura (Upload Keystore):** Gerar ou vincular o Keystore de upload no Google Play App Signing via `eas credentials` ou gerá-lo via Android Studio.
+4. **Imagens Promocionais:** Capturar screenshots do aplicativo em resolução mínima de 1080x1920 e criar o banner promocional (1024x500).
+5. **Hospedar Política de Privacidade:** Publicar o texto de privacidade disponibilizado em `docs/PLAY_STORE.md` em um domínio público (ex: GitHub Pages ou Cloudflare Pages).
+6. **Configurar Segredos no Cloudflare:**
+   - `cd apps/api && npx wrangler secret put GEMINI_API_KEY`
+   - `cd apps/api && npx wrangler secret put RAWG_API_KEY`
+
