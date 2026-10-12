@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    name: Lint, Typecheck & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm --filter @savestate/shared build
+
+      - name: Typecheck (All Workspaces)
+        run: |
+          pnpm --filter @savestate/shared typecheck
+          pnpm --filter @savestate/api typecheck
+          pnpm --filter @savestate/mobile typecheck
+
+      - name: Run Unit Tests
+        run: pnpm test
+
+      - name: Check Cloudflare D1 Migrations
+        run: |
+          cd apps/api
+          npx wrangler d1 migrations apply savestate-db --local

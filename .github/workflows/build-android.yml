@@ -1,0 +1,87 @@
+name: Android Build (APK & AAB)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Tipo de Build (preview-apk ou production-aab)'
+        required: true
+        default: 'preview-apk'
+        type: choice
+        options:
+          - preview-apk
+          - production-aab
+          - both
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Android (${{ inputs.build_type || 'tag-release' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm --filter @savestate/shared build
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Prebuild Native Android Project
+        run: |
+          cd apps/mobile
+          npx expo prebuild --platform android --clean
+
+      - name: Build Preview APK (Gradle)
+        if: ${{ inputs.build_type == 'preview-apk' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          cd apps/mobile/android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Upload Preview APK Artifact
+        if: ${{ inputs.build_type == 'preview-apk' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: savestate-preview-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
+
+      - name: Build Production AAB (Bundle)
+        if: ${{ inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          cd apps/mobile/android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+
+      - name: Upload Production AAB Artifact
+        if: ${{ inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: savestate-production-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
