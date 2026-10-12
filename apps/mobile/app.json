@@ -30,7 +30,9 @@
       ]
     },
     "plugins": [
+      "./plugins/withAndroidSplashScreenFix.js",
       "expo-router",
+      "expo-splash-screen",
       [
         "expo-image-picker",
         {
