@@ -6,7 +6,7 @@ export const integrationsRouter = new Hono<{ Bindings: Env }>();
 
 // Steam profile / library sync
 integrationsRouter.post('/integrations/steam/sync', async (c) => {
-  let body: { steamId?: string; steamApiKey?: string };
+  let body: { steamId?: string };
   try {
     body = await c.req.json();
   } catch {
@@ -15,14 +15,41 @@ integrationsRouter.post('/integrations/steam/sync', async (c) => {
 
   const { steamId } = body;
   if (!steamId || !steamId.trim()) {
-    return c.json({ error: 'SteamID é obrigatório.' }, 400);
+    return c.json({ error: 'SteamID ou identificador de perfil é obrigatório.' }, 400);
   }
 
-  const cleanSteamId = steamId.trim();
+  let cleanInput = steamId.trim();
+
+  // Support pasting full Steam profile URLs
+  // e.g. https://steamcommunity.com/profiles/76561197960287930/ or https://steamcommunity.com/id/custom_name/
+  if (cleanInput.includes('steamcommunity.com/profiles/')) {
+    const match = cleanInput.match(/steamcommunity\.com\/profiles\/(\d+)/);
+    if (match) cleanInput = match[1];
+  } else if (cleanInput.includes('steamcommunity.com/id/')) {
+    const match = cleanInput.match(/steamcommunity\.com\/id\/([a-zA-Z0-9_-]+)/);
+    if (match) cleanInput = match[1];
+  }
+
+  // Validate format (numeric SteamID64 or alphanumeric vanity name)
+  const isSteamId64 = /^\d{17}$/.test(cleanInput);
+  const isValidVanity = /^[a-zA-Z0-9_-]{2,64}$/.test(cleanInput);
+
+  if (!isSteamId64 && !isValidVanity) {
+    return c.json(
+      {
+        error:
+          'Identificador Steam inválido. Informe seu SteamID64 de 17 dígitos ou o nome personalizado do seu perfil (vanity ID).',
+      },
+      400
+    );
+  }
 
   try {
-    // Try public community XML endpoint (works for any public Steam profile without developer key!)
-    const xmlUrl = `https://steamcommunity.com/profiles/${cleanSteamId}/games?tab=all&xml=1`;
+    // Official public community XML endpoint for games list
+    const xmlUrl = isSteamId64
+      ? `https://steamcommunity.com/profiles/${cleanInput}/games?tab=all&xml=1`
+      : `https://steamcommunity.com/id/${cleanInput}/games?tab=all&xml=1`;
+
     const response = await fetch(xmlUrl, {
       headers: { 'User-Agent': 'SaveState-App/0.1.0' },
       signal: AbortSignal.timeout(12000),
@@ -32,7 +59,7 @@ integrationsRouter.post('/integrations/steam/sync', async (c) => {
       return c.json(
         {
           error:
-            'Não foi possível acessar o perfil da Steam. Verifique se o SteamID está correto e se o perfil está público em "Detalhes dos Jogos".',
+            'Não foi possível acessar o perfil da Steam. Verifique se o identificador está correto e se o perfil está público em "Detalhes dos Jogos".',
         },
         response.status === 404 ? 404 : 502
       );
@@ -40,20 +67,21 @@ integrationsRouter.post('/integrations/steam/sync', async (c) => {
 
     const xmlText = await response.text();
 
-    // Parse games from XML (lightweight regex extractor to avoid heavy XML parser deps in Workers)
+    // Check for private profile XML state
+    if (xmlText.includes('<privacyState>private</privacyState>')) {
+      return c.json(
+        {
+          error:
+            'O perfil da Steam informado é PRIVADO. Acesse as configurações de privacidade da sua conta Steam e defina "Detalhes dos Jogos" como "Público".',
+          isPrivate: true,
+        },
+        403
+      );
+    }
+
+    // Parse games from XML safely
     const gameBlocks = xmlText.match(/<game>([\s\S]*?)<\/game>/g) || [];
     if (gameBlocks.length === 0) {
-      if (xmlText.includes('<privacyState>private</privacyState>')) {
-        return c.json(
-          {
-            error:
-              'O perfil da Steam informado é PRIVADO. Acesse as configurações de privacidade da sua conta Steam e defina "Detalhes dos Jogos" como "Público".',
-            isPrivate: true,
-          },
-          403
-        );
-      }
-
       return c.json({
         games: [],
         total: 0,
@@ -63,7 +91,8 @@ integrationsRouter.post('/integrations/steam/sync', async (c) => {
 
     const rawGames = gameBlocks.map((block) => {
       const appidMatch = block.match(/<appID>(\d+)<\/appID>/);
-      const nameMatch = block.match(/<name><!\[CDATA\[(.*?)\]\]><\/name>/) || block.match(/<name>(.*?)<\/name>/);
+      const nameMatch =
+        block.match(/<name><!\[CDATA\[(.*?)\]\]><\/name>/) || block.match(/<name>(.*?)<\/name>/);
       const hoursMatch = block.match(/<hoursOnRecord>([\d.,]+)<\/hoursOnRecord>/);
 
       const appid = appidMatch ? parseInt(appidMatch[1], 10) : 0;
@@ -80,23 +109,22 @@ integrationsRouter.post('/integrations/steam/sync', async (c) => {
     const normalized = normalizeSteamGames(rawGames.filter((g) => g.appid > 0));
 
     return c.json({
-      steamId: cleanSteamId,
+      steamId: cleanInput,
       total: normalized.length,
       games: normalized,
       attribution: 'Dados importados da Comunidade Steam',
     });
-  } catch (err: any) {
-    console.error('Steam sync error:', err);
+  } catch (_err) {
     return c.json(
       {
-        error: `Falha ao conectar aos servidores da Steam (${err.message || 'tempo limite'}).`,
+        error: 'Falha temporária ao conectar aos servidores da Steam.',
       },
       504
     );
   }
 });
 
-// RetroAchievements user progress sync
+// RetroAchievements user progress / completed games sync
 integrationsRouter.post('/integrations/retroachievements/sync', async (c) => {
   let body: { username?: string; webApiKey?: string };
   try {
@@ -111,13 +139,18 @@ integrationsRouter.post('/integrations/retroachievements/sync', async (c) => {
   }
 
   const cleanUser = username.trim();
+  if (!/^[a-zA-Z0-9_-]{2,64}$/.test(cleanUser)) {
+    return c.json({ error: 'Nome de usuário do RetroAchievements inválido.' }, 400);
+  }
 
-  // If user provided a Web API key, call official RA API
+  // If user provided a Web API key, call official RetroAchievements API
   if (webApiKey && webApiKey.trim()) {
+    const cleanKey = webApiKey.trim();
     try {
       const url = `https://retroachievements.org/API/API_GetUserCompletedGames.php?u=${encodeURIComponent(
         cleanUser
-      )}&y=${encodeURIComponent(webApiKey.trim())}`;
+      )}&y=${encodeURIComponent(cleanKey)}`;
+
       const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
 
       if (response.ok) {
@@ -127,11 +160,13 @@ integrationsRouter.post('/integrations/retroachievements/sync', async (c) => {
           username: cleanUser,
           total: normalized.length,
           games: normalized,
+          notice:
+            'Importação de registros de jogos completados (100% de conquistas). Sua chave de API foi utilizada de forma efêmera e não foi salva no servidor.',
           attribution: 'Dados providos pela API oficial do RetroAchievements.org',
         });
       }
-    } catch (err: any) {
-      console.warn('RA API call failed:', err);
+    } catch (_err) {
+      // Never log sensitive key or upstream body
     }
   }
 
@@ -142,6 +177,7 @@ integrationsRouter.post('/integrations/retroachievements/sync', async (c) => {
     games: [],
     requiresKey: true,
     message:
-      'Para importar conquistas do RetroAchievements, informe sua Web API Key obtida gratuitamente nas configurações do seu perfil em retroachievements.org/controlpanel.php',
+      'Para importar jogos completados do RetroAchievements, informe sua Web API Key obtida gratuitamente nas configurações do seu perfil em retroachievements.org/controlpanel.php',
+    notice: 'Sua chave de API é usada apenas durante esta consulta direta e não fica salva no servidor.',
   });
 });

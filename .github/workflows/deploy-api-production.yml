@@ -1,0 +1,62 @@
+name: Deploy API (Cloudflare Workers Production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Digite "CONFIRMAR" para autorizar o deploy em PRODUÇÃO'
+        required: true
+        type: string
+
+jobs:
+  deploy-production:
+    name: Deploy to Cloudflare Workers (Production)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate Confirmation
+        run: |
+          if [ "${{ inputs.confirm_production }}" != "CONFIRMAR" ]; then
+            echo "Deploy cancelado: confirmação incorreta."
+            exit 1
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm --filter @savestate/shared build
+
+      - name: Validate Production Database Configuration
+        run: |
+          if grep -q "placeholder-prod-d1-id" apps/api/wrangler.jsonc; then
+            echo "::error::O banco de dados de produção ainda possui o ID de placeholder ('placeholder-prod-d1-id') em apps/api/wrangler.jsonc."
+            echo "Ação necessária do proprietário: Crie o banco de dados no Cloudflare D1 executando 'npx wrangler d1 create savestate-db-production' e atualize o database_id no arquivo wrangler.jsonc."
+            exit 1
+          fi
+
+      - name: Apply D1 Production Migrations & Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'apps/api'
+          command: |
+            wrangler d1 migrations apply savestate-db-production --remote --env production
+            wrangler deploy --env production
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}

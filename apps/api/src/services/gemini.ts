@@ -11,8 +11,8 @@ export interface GeminiServiceOptions {
 }
 
 export function generateExternalSearchLinks(gameTitle: string, query: string) {
-  const cleanTitle = encodeURIComponent(gameTitle.trim());
-  const cleanQuery = encodeURIComponent(query.trim());
+  const cleanTitle = encodeURIComponent((gameTitle || 'Jogo').trim());
+  const cleanQuery = encodeURIComponent((query || 'dicas').trim());
 
   return [
     {
@@ -49,7 +49,7 @@ export async function askGeminiAssistant(
   // Fallback when API key is not configured
   if (!apiKey) {
     return {
-      answer: `[Assistente de IA Indisponível - Chave não configurada]\n\nA inferência em tempo real com visão e texto do Google Gemini está temporariamente indisponível porque a chave \`GEMINI_API_KEY\` não foi configurada no ambiente Cloudflare Workers.\n\nContexto do jogo: **${req.context.gameTitle}** (${req.context.currentObjective || req.context.currentChapter || 'Campanha principal'}).\n\nVocê pode consultar os links externos de detonados e guias da comunidade abaixo:`,
+      answer: `[Assistente de IA Indisponível - Chave não configurada]\n\nA inferência em tempo real com visão e texto do Google Gemini está temporariamente indisponível porque a chave GEMINI_API_KEY não foi configurada no ambiente Cloudflare Workers.\n\nContexto do jogo: **${req.context.gameTitle}** (${req.context.currentObjective || req.context.currentChapter || 'Campanha principal'}).\n\nVocê pode consultar os links externos de detonados e guias da comunidade abaixo:`,
       hintTier: req.context.hintTier,
       isFallback: true,
       externalSearchLinks: guideLinks,
@@ -57,7 +57,8 @@ export async function askGeminiAssistant(
   }
 
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    // Official Gemini REST API supports x-goog-api-key header; keep key out of query string
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
     const promptText = buildAssistantPrompt(req.message, req.context, Boolean(req.imageBase64));
 
@@ -93,7 +94,10 @@ export async function askGeminiAssistant(
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(15000), // 15s timeout
     });
@@ -109,8 +113,7 @@ export async function askGeminiAssistant(
     }
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error(`Gemini API error (${response.status}):`, errText);
+      // Never log user content or raw sensitive response
       return {
         answer: `O serviço do assistente encontrou uma instabilidade temporária. Consulte os guias da comunidade abaixo ou tente reenviar sua pergunta em instantes.`,
         hintTier: req.context.hintTier,
@@ -130,10 +133,10 @@ export async function askGeminiAssistant(
       hintTier: req.context.hintTier,
       externalSearchLinks: guideLinks,
     };
-  } catch (err: any) {
-    console.error('Gemini call failed:', err);
+  } catch (_err) {
+    // Sanitized error response: do not expose internal exceptions or timeout details
     return {
-      answer: `Houve uma falha de conexão com o assistente (${err.message || 'tempo limite'}). Suas anotações locais continuam salvas. Use os links de detonado abaixo:`,
+      answer: `Houve uma falha de conexão com o assistente. Suas anotações locais continuam salvas. Use os links de detonado abaixo para continuar avançando:`,
       hintTier: req.context.hintTier,
       isFallback: true,
       externalSearchLinks: guideLinks,

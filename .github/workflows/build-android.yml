@@ -15,18 +15,18 @@ on:
   push:
     branches:
       - master
-      - main
     tags:
       - 'v*'
 
 jobs:
   build:
-    name: Build Android (${{ inputs.build_type || 'preview-apk' }})
+    name: Build Android (${{ inputs.build_type || (startsWith(github.ref, 'refs/tags/') && 'both') || 'preview-apk' }})
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       EXPO_PUBLIC_API_URL: https://savestate-api-staging.safeloot.workers.dev
+      APP_VARIANT: ${{ (inputs.build_type == 'production-aab' && 'production') || (startsWith(github.ref, 'refs/tags/') && 'production') || 'preview' }}
 
     steps:
       - name: Checkout Code
@@ -66,41 +66,71 @@ jobs:
           cd apps/mobile
           npx expo prebuild --platform android --no-install
 
+      # --- PREVIEW APK BUILD ---
       - name: Build Preview APK (Gradle)
-        if: ${{ github.event_name == 'push' || inputs.build_type == 'preview-apk' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') || inputs.build_type == 'preview-apk' || inputs.build_type == 'both' }}
         run: |
           cd apps/mobile/android
           chmod +x gradlew
           ./gradlew assembleRelease
 
       - name: Upload Preview APK Artifact
-        if: ${{ github.event_name == 'push' || inputs.build_type == 'preview-apk' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') || inputs.build_type == 'preview-apk' || inputs.build_type == 'both' }}
         uses: actions/upload-artifact@v4
         with:
           name: savestate-preview-apk
           path: apps/mobile/android/app/build/outputs/apk/release/*.apk
 
-      - name: Create or Update GitHub Release with Preview APK
-        if: ${{ github.event_name == 'push' || inputs.build_type == 'preview-apk' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # --- PRODUCTION AAB BUILD (Play Store) ---
+      - name: Check Production Release Keystore
+        if: ${{ inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
         run: |
-          APK_FILE=$(find apps/mobile/android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          if [ -n "$APK_FILE" ]; then
-            cp "$APK_FILE" ./SaveState-preview.apk
-            gh release create v0.1.0-preview ./SaveState-preview.apk --title "SaveState v0.1.0 (Preview APK)" --notes "Preview APK instalável conectado ao backend de staging https://savestate-api-staging.safeloot.workers.dev" --prerelease || gh release upload v0.1.0-preview ./SaveState-preview.apk --clobber
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::Keystore de assinatura para produção não configurada nos secrets do GitHub (ANDROID_KEYSTORE_BASE64)."
+            echo "A Google Play Store exige assinatura real com keystore de release. Consulte docs/PLAY_STORE.md para instruções."
+            # If explicit production build was requested without keys, fail fast
+            if [ "${{ inputs.build_type }}" == "production-aab" ]; then
+              exit 1
+            fi
+          else
+            echo "Keystore de assinatura de release detectada."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > apps/mobile/android/app/release.keystore
+            echo "RELEASE_STORE_FILE=release.keystore" >> $GITHUB_ENV
+            echo "RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> $GITHUB_ENV
           fi
 
       - name: Build Production AAB (Bundle)
-        if: ${{ inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ (inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/')) && env.RELEASE_STORE_FILE != '' }}
         run: |
           cd apps/mobile/android
           chmod +x gradlew
           ./gradlew bundleRelease
 
       - name: Upload Production AAB Artifact
-        if: ${{ inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ (inputs.build_type == 'production-aab' || inputs.build_type == 'both' || startsWith(github.ref, 'refs/tags/')) && env.RELEASE_STORE_FILE != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: savestate-production-aab
           path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
+
+      # --- GITHUB RELEASE (Only on Version Tags) ---
+      - name: Create Versioned GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          APK_FILE=$(find apps/mobile/android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1 || true)
+          AAB_FILE=$(find apps/mobile/android/app/build/outputs/bundle/release/ -name "*.aab" | head -n 1 || true)
+          ASSETS=()
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" "./SaveState-${TAG_NAME}.apk"
+            ASSETS+=("./SaveState-${TAG_NAME}.apk")
+          fi
+          if [ -n "$AAB_FILE" ]; then
+            cp "$AAB_FILE" "./SaveState-${TAG_NAME}.aab"
+            ASSETS+=("./SaveState-${TAG_NAME}.aab")
+          fi
+          gh release create "$TAG_NAME" "${ASSETS[@]}" --title "SaveState ${TAG_NAME}" --notes "Release ${TAG_NAME} gerada pelo GitHub Actions."

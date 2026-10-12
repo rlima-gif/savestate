@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Lint, Typecheck & Tests
+    name: Lint, Typecheck, Tests & Export Check
     runs-on: ubuntu-latest
 
     steps:
@@ -44,3 +44,9 @@ jobs:
         run: |
           cd apps/api
           npx wrangler d1 migrations apply savestate-db --local
+
+      - name: Expo Doctor & Android Export Check
+        run: |
+          cd apps/mobile
+          npx expo-doctor
+          npx expo export --platform android

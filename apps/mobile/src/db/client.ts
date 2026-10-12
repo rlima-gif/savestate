@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { SQL_SCHEMA_V1 } from './schema';
+import { migrateDatabase } from './migrations';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
@@ -12,7 +12,5 @@ export function getDatabase(): SQLite.SQLiteDatabase {
 }
 
 export function initDatabase(db: SQLite.SQLiteDatabase) {
-  // Execute schema creation statements
-  db.execSync('PRAGMA foreign_keys = ON;');
-  db.execSync(SQL_SCHEMA_V1);
+  migrateDatabase(db);
 }

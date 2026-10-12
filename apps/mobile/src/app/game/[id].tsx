@@ -206,37 +206,42 @@ export default function GameDetailsScreen() {
       )}
 
       {/* Estimated Durations */}
-      {game.estimatedDurationHours && (
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Duração Estimada (HowLongToBeat / RAWG)</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardHeader}>Duração Estimada</Text>
+        {game.estimatedDurationHours &&
+        (game.estimatedDurationHours.mainStory ||
+          game.estimatedDurationHours.mainExtra ||
+          game.estimatedDurationHours.completionist) ? (
           <View style={styles.durationRow}>
-            {game.estimatedDurationHours.mainStory && (
+            {game.estimatedDurationHours.mainStory ? (
               <View style={styles.durationBox}>
                 <Text style={styles.durationNumber}>
                   {game.estimatedDurationHours.mainStory}h
                 </Text>
                 <Text style={styles.durationLabel}>História</Text>
               </View>
-            )}
-            {game.estimatedDurationHours.mainExtra && (
+            ) : null}
+            {game.estimatedDurationHours.mainExtra ? (
               <View style={styles.durationBox}>
                 <Text style={styles.durationNumber}>
                   {game.estimatedDurationHours.mainExtra}h
                 </Text>
                 <Text style={styles.durationLabel}>História + Extras</Text>
               </View>
-            )}
-            {game.estimatedDurationHours.completionist && (
+            ) : null}
+            {game.estimatedDurationHours.completionist ? (
               <View style={styles.durationBox}>
                 <Text style={styles.durationNumber}>
                   {game.estimatedDurationHours.completionist}h
                 </Text>
                 <Text style={styles.durationLabel}>100% Platina</Text>
               </View>
-            )}
+            ) : null}
           </View>
-        </View>
-      )}
+        ) : (
+          <Text style={styles.descriptionText}>Não disponível para este título.</Text>
+        )}
+      </View>
 
       {/* Game Description */}
       {game.description && (

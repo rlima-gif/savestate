@@ -1,7 +1,7 @@
 # SaveState — Backlog & Assistente Gamer
 
 > **O aplicativo definitivo de backlog e assistente inteligente para jogadores.**  
-> Aplicativo nativo Android desenvolvido com React Native (Expo SDK 52), persistência local offline-first com SQLite, e assistente com IA multimodal (texto e visão) potencializado pela API Google Gemini e Cloudflare Workers.
+> Aplicativo nativo Android desenvolvido com React Native (Expo SDK 52, Android API 36 / Android 16), persistência local offline-first com SQLite, e assistente com IA multimodal (texto e visão) potencializado pela API Google Gemini e Cloudflare Workers.
 
 ---
 
@@ -28,17 +28,17 @@
     - 🔍 *Dica Detalhada:* Explicação da mecânica ou próximo passo.
     - 🏆 *Solução Completa:* Passo a passo detalhado para superar o puzzle ou chefe.
     - 🛡️ *Filtro de Spoilers:* Respeita o nível de spoiler configurado pelo jogador.
-  - **Fallback Inteligente:** Se a cota da IA for atingida ou não houver internet, o app oferece automaticamente links diretos de detonados no YouTube, GameFAQs, Guias da Steam e Wikis.
+  - **Fallback Inteligente:** Se a cota da IA for atingida ou não houver internet, o app oferece automaticamente links diretos de detonados no YouTube, GameFAQs, Guias da Comunidade Steam e Wikis.
 
 - **Recomendações Transparentes baseadas em Regras ("O Que Jogar a Seguir?"):**
-  - Algoritmo baseado em pontuações transparentes (sem IA "caixa-preta"), ponderando: prioridade no backlog, proximidade do término de assinaturas temporárias (Game Pass, PS Plus), adequação do tempo da sessão (partidas rápidas de &lt;30m, sessões médias ou imersão longa) e dados estimados de duração do HowLongToBeat / RAWG.
+  - Algoritmo baseado em pontuações transparentes (sem IA "caixa-preta"), ponderando: prioridade no backlog, proximidade do término de assinaturas temporárias (Game Pass, PS Plus) e adequação do tempo da sessão (partidas rápidas de <30m, sessões médias ou imersão longa).
 
 - **Checklists e Metas Pessoais por Campanha:**
-  - Crie metas personalizadas: missões secundárias, colecionáveis, chefes opcionais, finais alternativos e conquistas.
+  - Crie metas personalizadas: missões secundárias, colecionáveis, chefes opcionais, finais alternativos e conquistas manuais.
   - Alerta de **Conteúdo Perdível (Missable)** e indicação de Pontos de Não Retorno.
 
 - **Hardware, Emuladores e Dispositivos:**
-  - Registre presets gráficos, resoluções, metas de FPS e pastas de save files para seus aparelhos (Steam Deck, Legion Go, PC Gamer, Nintendo Switch, Portáteis Retrô).
+  - Registre presets gráficos, resoluções, metas de FPS e notas de save files para seus aparelhos (Steam Deck, Legion Go, PC Gamer, Nintendo Switch, Portáteis Retrô).
 
 - **Backup e Restauração Zero-Lockin:**
   - Exportação completa em formato JSON relacional versionado.
@@ -47,17 +47,32 @@
 
 ---
 
+## 🔑 O Que Funciona Com e Sem Chaves de API
+
+| Recurso | Sem Chaves de API | Com Chave de API Configurada no Servidor |
+|---|---|---|
+| **Biblioteca & Backlog** | ✅ Funcionalidade completa (100% offline via SQLite local) | ✅ Funcionalidade completa |
+| **Checklists & Sessões** | ✅ Funcionalidade completa (100% offline via SQLite local) | ✅ Funcionalidade completa |
+| **Cadastro de Jogos** | ✅ Cadastro manual completo com capas, plataformas e gêneros | ✅ Cadastro manual ou busca no catálogo |
+| **Backups JSON / CSV** | ✅ Exportação e importação local completas | ✅ Exportação e importação local completas |
+| **Busca Online de Catálogo** | ℹ️ Retorna mensagem informativa com opção de cadastro manual direto | ✅ Busca completa online via RAWG API |
+| **Assistente Gamer (IA)** | ℹ️ Exibe links de detonados (GameFAQs, Steam Guides, YouTube) | ✅ Inferência multimodal ao vivo (texto e visão) via Gemini |
+| **Importação Steam** | ✅ Funciona sem chave (perfis públicos via SteamID64 ou Vanity ID) | ✅ Funciona sem chave |
+| **RetroAchievements** | ℹ️ Requer Web API Key pessoal do usuário (gratuita no site oficial) | ✅ Importa jogos completados (100% de conquistas) |
+
+---
+
 ## 🛠️ Stack Tecnológico
 
 | Camada | Tecnologia | Detalhes |
 |---|---|---|
-| **App Mobile** | React Native, Expo SDK 52, Expo Router | TypeScript estrito, New Architecture habilitada |
-| **Banco Local** | Expo SQLite (`expo-sqlite`) | Offline-first, chaves estrangeiras, migrações versionadas |
+| **App Mobile** | React Native, Expo SDK 52, Expo Router | TypeScript estrito, Target SDK 36 (Android 16) |
+| **Banco Local** | Expo SQLite (`expo-sqlite`) | Offline-first, chaves estrangeiras, migrações versionadas (`PRAGMA user_version`) |
 | **Backend API** | Cloudflare Workers com Hono v4 | Execução serverless global com latência ultrabaixa |
-| **Banco Cloud** | Cloudflare D1 (SQLite) | Controle de limites diários (Rate Limiting) e cache de catálogo |
-| **Motor de IA** | Google Gemini (`gemini-3.5-flash-lite` / `gemini-3.8-flash`) | Visão e texto, instruções em Português do Brasil |
-| **Catálogo** | Adaptador RAWG / IGDB | Normalizado, paginação e fallback offline com mock de alta fidelidade |
-| **CI/CD** | GitHub Actions | Lint, Typecheck, Testes, Build de APK e AAB Android |
+| **Banco Cloud** | Cloudflare D1 (SQLite) | Rate limiting atômico, proteção contra abusos e cache de catálogo (TTL 24h) |
+| **Motor de IA** | Google Gemini (`gemini-2.5-flash` / `gemini-3.5-flash-lite`) | Visão e texto, chave protegida exclusivamente no servidor |
+| **Catálogo** | Adaptador RAWG Video Games Database | Busca normalizada com cache D1 e fallback informativo |
+| **CI/CD** | GitHub Actions | Lint, Typecheck, Testes, Build de APK Preview e AAB de Produção |
 
 ---
 
@@ -77,7 +92,7 @@ savestate/
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Como Executar e Testar Localmente
 
 ### 1. Pré-requisitos
 - Node.js 20+
@@ -85,9 +100,7 @@ savestate/
 
 ### 2. Instalação
 ```bash
-git clone <repo-url> savestate
-cd savestate
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 ```
 
@@ -96,10 +109,13 @@ pnpm build
 pnpm test
 ```
 
-### 4. Iniciar o Backend Local (Cloudflare Workers)
+### 4. Checagem de Tipos (TypeScript)
 ```bash
-# Copie o arquivo de exemplo e configure sua chave GEMINI_API_KEY se desejar
-cp .env.example .env
+pnpm typecheck
+```
+
+### 5. Iniciar o Backend Local (Cloudflare Workers)
+```bash
 pnpm api:dev
 ```
 A API iniciará em `http://localhost:8787`. Você pode testar o endpoint de saúde em `http://localhost:8787/health`.
@@ -108,7 +124,7 @@ A API iniciará em `http://localhost:8787`. Você pode testar o endpoint de saú
 > **`https://savestate-api-staging.safeloot.workers.dev`**  
 > Teste o health check ao vivo: `https://savestate-api-staging.safeloot.workers.dev/health`
 
-### 5. Iniciar o App Mobile (Expo)
+### 6. Iniciar o App Mobile (Expo)
 ```bash
 pnpm mobile:start
 ```
@@ -123,23 +139,21 @@ npx expo export --platform android
 ## 📦 Builds para Android (APK e AAB)
 
 - **Preview APK (Instalável diretamente em qualquer celular Android):**
-  ```bash
-  cd apps/mobile
-  eas build --platform android --profile preview
-  ```
-  Ou acione a workflow do GitHub Actions em `.github/workflows/build-android.yml` selecionando a opção `preview-apk`.
+  - Acione a workflow do GitHub Actions em `.github/workflows/build-android.yml` selecionando a opção `preview-apk`, ou faça push para o branch `master`.
+  - O artefato gerado fica disponível na aba Actions (`savestate-preview-apk`).
+  - O aplicativo utiliza o ID de pacote `com.savestate.app.preview` para não colidir com versões de produção.
 
 - **Production AAB (Pronto para envio à Google Play Store):**
-  ```bash
-  cd apps/mobile
-  eas build --platform android --profile production
-  ```
-  Ou acione a workflow selecionando `production-aab`.
+  - Acione a workflow selecionando `production-aab` ou envie uma tag de versão (`git tag v0.1.0 && git push origin v0.1.0`).
+  - Exige a configuração dos secrets de assinatura de release (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, etc.) conforme documentado em [`docs/PLAY_STORE.md`](./docs/PLAY_STORE.md).
 
 ---
 
-## 🔒 Privacidade e Segurança de Dados
+## 🔒 Atribuição de Provedores e Licença
 
-- Todos os seus jogos, anotações de progresso, checklists e configurações de hardware ficam gravados **exclusivamente no armazenamento local do seu aparelho celular**.
-- Nenhuma foto ou captura de tela enviada para o assistente é armazenada de forma remota permanente no servidor Cloudflare. A imagem é processada na memória transitória e descartada após a resposta da IA.
-- Metadados sensíveis de localização GPS contidos em fotos são removidos no próprio aparelho antes da transmissão.
+- **RAWG:** Dados de jogos fornecidos pela [RAWG Video Games Database API](https://rawg.io).
+- **Steam:** Dados de biblioteca importados da Comunidade Steam sob os termos da Valve Corporation.
+- **RetroAchievements:** Registros de jogos completados providos pela API oficial do [RetroAchievements.org](https://retroachievements.org).
+- **Google Gemini:** Inteligência artificial multimodal provida pela Google Cloud / Google AI Studio.
+- **Política de Privacidade:** Consulte o rascunho completo em [`docs/PRIVACY_POLICY.md`](./docs/PRIVACY_POLICY.md).
+- **Licença do Repositório:** Decisão pendente de definição pelo proprietário do projeto.

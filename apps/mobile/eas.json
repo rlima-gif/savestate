@@ -19,7 +19,8 @@
         "withoutCredentials": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.workers.dev"
+        "APP_VARIANT": "preview",
+        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev"
       }
     },
     "production": {
@@ -28,7 +29,7 @@
         "applicationId": "com.savestate.app"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.savestate.app"
+        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev"
       }
     }
   },

@@ -160,16 +160,17 @@ export default function SyncIntegrationsModal() {
 
       {platformTab === 'steam' ? (
         <View style={styles.formCard}>
-          <Text style={styles.label}>SteamID64 (Perfil Público):</Text>
+          <Text style={styles.label}>SteamID64 ou Perfil Personalizado:</Text>
           <TextInput
             style={styles.input}
             value={steamId}
             onChangeText={setSteamId}
-            placeholder="Ex: 76561198000000000"
+            placeholder="Ex: 76561198000000000 ou seu_id"
             placeholderTextColor={colors.dark.textMuted}
+            autoCapitalize="none"
           />
           <Text style={styles.hint}>
-            Nota: Seu perfil da Steam deve estar configurado como "Público" em "Detalhes dos Jogos" nas configurações de privacidade.
+            Cole seu SteamID64 numérico de 17 dígitos, o ID personalizado do seu perfil ou a URL completa. O perfil deve estar público em "Detalhes dos Jogos".
           </Text>
 
           <TouchableOpacity style={styles.fetchBtn} onPress={handleFetchSteam} disabled={isLoading}>
@@ -178,7 +179,7 @@ export default function SyncIntegrationsModal() {
             ) : (
               <>
                 <Ionicons name="search" size={16} color="#FFF" />
-                <Text style={styles.fetchBtnText}>Consultar Jogos da Steam</Text>
+                <Text style={styles.fetchBtnText}>Consultar Biblioteca Steam</Text>
               </>
             )}
           </TouchableOpacity>
@@ -230,6 +231,7 @@ export default function SyncIntegrationsModal() {
             onChangeText={setRaUsername}
             placeholder="Ex: SeuUsuario"
             placeholderTextColor={colors.dark.textMuted}
+            autoCapitalize="none"
           />
 
           <Text style={[styles.label, { marginTop: 10 }]}>Web API Key (Opcional):</Text>
@@ -241,6 +243,9 @@ export default function SyncIntegrationsModal() {
             placeholderTextColor={colors.dark.textMuted}
             secureTextEntry
           />
+          <Text style={styles.hint}>
+            Importa o catálogo de jogos completados (com 100% de conquistas). Sua chave é transmitida de forma efêmera e não fica salva no servidor.
+          </Text>
 
           <TouchableOpacity
             style={styles.fetchBtn}
@@ -261,7 +266,7 @@ export default function SyncIntegrationsModal() {
               }
             }}
           >
-            <Text style={styles.fetchBtnText}>Consultar Conquistas</Text>
+            <Text style={styles.fetchBtnText}>Consultar Jogos Completados</Text>
           </TouchableOpacity>
         </View>
       )}
