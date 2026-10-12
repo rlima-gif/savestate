@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 14.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "gradleCommand": ":app:assembleDebug",
+        "withoutCredentials": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "applicationId": "com.savestate.app.preview",
+        "withoutCredentials": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.workers.dev"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "applicationId": "com.savestate.app"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.savestate.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}

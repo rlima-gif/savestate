@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "SaveState",
+    "slug": "savestate",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121214"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.savestate.app"
+    },
+    "android": {
+      "package": "com.savestate.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#121214"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O SaveState precisa acessar sua galeria para você selecionar capas de jogos e capturas de tela para o assistente.",
+          "cameraPermission": "O SaveState precisa da câmera para fotografar telas de jogos, quebra-cabeças e itens para o assistente."
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "local-savestate-project-id"
+      }
+    }
+  }
+}
