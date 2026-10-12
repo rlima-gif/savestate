@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "savestate-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-02-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "savestate-db",
+      "database_id": "local-savestate-db-id",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "GEMINI_MODEL": "gemini-3.5-flash-lite",
+    "AI_DAILY_RATE_LIMIT": 30,
+    "AI_FEATURE_ENABLED": "true"
+  },
+  "env": {
+    "staging": {
+      "name": "savestate-api-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "GEMINI_MODEL": "gemini-3.5-flash-lite",
+        "AI_DAILY_RATE_LIMIT": 30,
+        "AI_FEATURE_ENABLED": "true"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "savestate-db-staging",
+          "database_id": "placeholder-staging-d1-id",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "savestate-api-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "GEMINI_MODEL": "gemini-3.5-flash-lite",
+        "AI_DAILY_RATE_LIMIT": 50,
+        "AI_FEATURE_ENABLED": "true"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "savestate-db-production",
+          "database_id": "placeholder-prod-d1-id",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

@@ -63,6 +63,7 @@ export interface AssistantChatResponse {
   topicDetected?: AssistantTopic;
   isAmbiguousImage?: boolean;
   suggestedFollowUp?: string;
+  isFallback?: boolean;
   externalSearchLinks: Array<{
     title: string;
     url: string;
