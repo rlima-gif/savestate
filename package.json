@@ -14,6 +14,7 @@
     "api:deploy": "pnpm --filter @savestate/api deploy"
   },
   "devDependencies": {
+    "babel-preset-expo": "~12.0.12",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
   }
