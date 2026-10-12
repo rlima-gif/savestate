@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   StyleSheet,
   Alert,
   Image,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { CanonicalGame, Playthrough, PlaythroughStatus, OwnershipType } from '@savestate/shared';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CanonicalGame, PlaythroughStatus, OwnershipType } from '@savestate/shared';
 import { GameRepository } from '../../db/repositories/game-repo';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
 import { ImageService } from '../../services/image-picker';
@@ -19,26 +22,40 @@ import { colors } from '../../theme/colors';
 
 export default function AddGameModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ initialTitle?: string }>();
+
   const [title, setTitle] = useState('');
-  const [platformsInput, setPlatformsInput] = useState('PC, Steam');
-  const [genresInput, setGenresInput] = useState('Ação, RPG');
+  const [platformsInput, setPlatformsInput] = useState('PC');
+  const [genresInput, setGenresInput] = useState('Ação');
   const [coverUrl, setCoverUrl] = useState('');
   const [ownershipType, setOwnershipType] = useState<OwnershipType>('digital');
   const [initialStatus, setInitialStatus] = useState<PlaythroughStatus>('backlog');
 
+  useEffect(() => {
+    if (params.initialTitle) {
+      try {
+        setTitle(decodeURIComponent(params.initialTitle));
+      } catch {
+        setTitle(params.initialTitle);
+      }
+    }
+  }, [params.initialTitle]);
+
   const handlePickCover = async () => {
     try {
       const res = await ImageService.pickFromGallery();
-      if (res) {
+      if (res && res.uri) {
         setCoverUrl(res.uri);
       }
     } catch (err: any) {
-      Alert.alert('Erro', err.message);
+      Alert.alert('Erro', err.message || 'Falha ao selecionar imagem da galeria.');
     }
   };
 
   const handleSave = () => {
-    if (!title.trim()) {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) {
       Alert.alert('Campo Obrigatório', 'Por favor, informe o título do jogo.');
       return;
     }
@@ -55,9 +72,9 @@ export default function AddGameModal() {
 
     const newGame: CanonicalGame = {
       id: gameId,
-      title: title.trim(),
+      title: cleanTitle,
       platforms: platforms.length > 0 ? platforms : ['PC'],
-      genres: genres.length > 0 ? genres : ['Ação'],
+      genres: genres.length > 0 ? genres : ['Geral'],
       coverUrl: coverUrl.trim() || undefined,
       source: 'manual',
       externalIds: {},
@@ -93,177 +110,219 @@ export default function AddGameModal() {
     router.back();
   };
 
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.modalTitle}>Cadastro Manual de Jogo</Text>
+    <KeyboardAvoidingView
+      style={styles.flex1}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 32 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.modalTitle}>Novo Jogo na Coleção</Text>
+        <Text style={styles.modalSub}>
+          Cadastre seu jogo com capa e status. Seus dados ficam salvos 100% offline no dispositivo.
+        </Text>
 
-      {/* Title */}
-      <Text style={styles.label}>Título do Jogo *</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Ex: Metroid Prime Remastered"
-        placeholderTextColor={colors.dark.textMuted}
-      />
+        {/* Title */}
+        <Text style={styles.label}>Título do Jogo *</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Ex: Metroid Prime Remastered, Chrono Trigger..."
+          placeholderTextColor={colors.dark.textMuted}
+          autoFocus={!params.initialTitle}
+        />
 
-      {/* Cover */}
-      <Text style={[styles.label, { marginTop: 12 }]}>Capa do Jogo (URL ou Foto)</Text>
-      <View style={styles.coverRow}>
-        {coverUrl ? (
-          <Image source={{ uri: coverUrl }} style={styles.coverPreview} />
-        ) : (
-          <View style={styles.coverPlaceholder}>
-            <Ionicons name="image-outline" size={24} color={colors.dark.textMuted} />
+        {/* Cover */}
+        <Text style={[styles.label, { marginTop: 14 }]}>Capa do Jogo</Text>
+        <View style={styles.coverRow}>
+          {coverUrl ? (
+            <Image source={{ uri: coverUrl }} style={styles.coverPreview} />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <Ionicons name="image-outline" size={24} color={colors.dark.textMuted} />
+            </View>
+          )}
+          <View style={styles.coverInputContainer}>
+            <TextInput
+              style={styles.inputSmall}
+              value={coverUrl}
+              onChangeText={setCoverUrl}
+              placeholder="Cole o link da capa (URL)..."
+              placeholderTextColor={colors.dark.textMuted}
+            />
+            <TouchableOpacity style={styles.pickCoverBtn} onPress={handlePickCover} activeOpacity={0.8}>
+              <Ionicons name="folder-open" size={16} color={colors.dark.accent} />
+              <Text style={styles.pickCoverText}>Escolher da Galeria</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        <View style={styles.coverInputContainer}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            value={coverUrl}
-            onChangeText={setCoverUrl}
-            placeholder="Cole o link da imagem..."
-            placeholderTextColor={colors.dark.textMuted}
-          />
-          <TouchableOpacity style={styles.pickCoverBtn} onPress={handlePickCover}>
-            <Ionicons name="folder-open-outline" size={16} color="#FFF" />
-            <Text style={styles.pickCoverText}>Galeria</Text>
+        </View>
+
+        {/* Platforms */}
+        <Text style={[styles.label, { marginTop: 14 }]}>Plataformas (separadas por vírgula)</Text>
+        <TextInput
+          style={styles.input}
+          value={platformsInput}
+          onChangeText={setPlatformsInput}
+          placeholder="Ex: PC, Nintendo Switch, PS5, Steam Deck..."
+          placeholderTextColor={colors.dark.textMuted}
+        />
+
+        {/* Genres */}
+        <Text style={[styles.label, { marginTop: 14 }]}>Gêneros</Text>
+        <TextInput
+          style={styles.input}
+          value={genresInput}
+          onChangeText={setGenresInput}
+          placeholder="Ex: Metroidvania, RPG, Roguelike, Soulslike..."
+          placeholderTextColor={colors.dark.textMuted}
+        />
+
+        {/* Ownership Type */}
+        <Text style={[styles.label, { marginTop: 14 }]}>Tipo de Posse</Text>
+        <View style={styles.chipsRow}>
+          {(['digital', 'physical', 'subscription', 'borrowed'] as OwnershipType[]).map((type) => {
+            const isSelected = ownershipType === type;
+            const labels: Record<string, string> = {
+              digital: 'Digital',
+              physical: 'Mídia Física',
+              subscription: 'Assinatura / Game Pass',
+              borrowed: 'Emprestado',
+            };
+            return (
+              <TouchableOpacity
+                key={type}
+                style={[styles.chip, isSelected && styles.chipActive]}
+                onPress={() => setOwnershipType(type)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                  {labels[type] || type}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Status */}
+        <Text style={[styles.label, { marginTop: 14 }]}>Status Inicial</Text>
+        <View style={styles.chipsRow}>
+          {(['backlog', 'playing', 'paused', 'beaten'] as PlaythroughStatus[]).map((st) => {
+            const isSelected = initialStatus === st;
+            const labels: Record<string, string> = {
+              backlog: 'Backlog',
+              playing: 'Jogando Agora',
+              paused: 'Pausado',
+              beaten: 'Zerado',
+            };
+            return (
+              <TouchableOpacity
+                key={st}
+                style={[styles.chip, isSelected && styles.chipActive]}
+                onPress={() => setInitialStatus(st)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                  {labels[st] || st}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
+            <Ionicons name="checkmark-circle" size={18} color="#FFF" style={{ marginRight: 6 }} />
+            <Text style={styles.saveBtnText}>Salvar na Minha Coleção</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} activeOpacity={0.7}>
+            <Text style={styles.cancelBtnText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Platforms */}
-      <Text style={[styles.label, { marginTop: 12 }]}>Plataformas (separadas por vírgula)</Text>
-      <TextInput
-        style={styles.input}
-        value={platformsInput}
-        onChangeText={setPlatformsInput}
-        placeholder="Ex: Nintendo Switch, PC, PS5"
-        placeholderTextColor={colors.dark.textMuted}
-      />
-
-      {/* Genres */}
-      <Text style={[styles.label, { marginTop: 12 }]}>Gêneros (separados por vírgula)</Text>
-      <TextInput
-        style={styles.input}
-        value={genresInput}
-        onChangeText={setGenresInput}
-        placeholder="Ex: Metroidvania, Ficção Científica"
-        placeholderTextColor={colors.dark.textMuted}
-      />
-
-      {/* Ownership Type */}
-      <Text style={[styles.label, { marginTop: 12 }]}>Tipo de Posse</Text>
-      <View style={styles.chipsRow}>
-        {(['digital', 'physical', 'subscription', 'borrowed'] as OwnershipType[]).map((type) => {
-          const isSelected = ownershipType === type;
-          const labels = {
-            digital: 'Digital',
-            physical: 'Mídia Física',
-            subscription: 'Assinatura',
-            borrowed: 'Emprestado',
-            other: 'Outro',
-          };
-          return (
-            <TouchableOpacity
-              key={type}
-              style={[styles.chip, isSelected && styles.chipActive]}
-              onPress={() => setOwnershipType(type)}
-            >
-              <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                {labels[type]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Status */}
-      <Text style={[styles.label, { marginTop: 12 }]}>Status Inicial</Text>
-      <View style={styles.chipsRow}>
-        {(['backlog', 'playing', 'paused', 'beaten'] as PlaythroughStatus[]).map((st) => {
-          const isSelected = initialStatus === st;
-          const labels = {
-            backlog: 'Backlog',
-            playing: 'Jogando',
-            paused: 'Pausado',
-            beaten: 'Zerado',
-          };
-          return (
-            <TouchableOpacity
-              key={st}
-              style={[styles.chip, isSelected && styles.chipActive]}
-              onPress={() => setInitialStatus(st)}
-            >
-              <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                {labels[st as keyof typeof labels]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Adicionar à Biblioteca</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-          <Text style={styles.cancelBtnText}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+    backgroundColor: colors.dark.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.dark.background,
   },
   content: {
     padding: 20,
-    gap: 8,
+    gap: 6,
   },
   modalTitle: {
     color: colors.dark.text,
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  modalSub: {
+    color: colors.dark.textSecondary,
+    fontSize: 13,
     marginBottom: 12,
+    lineHeight: 18,
   },
   label: {
     color: colors.dark.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
+    backgroundColor: colors.dark.inputBg,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.dark.text,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: colors.dark.cardBorder,
+  },
+  inputSmall: {
     backgroundColor: colors.dark.inputBg,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     color: colors.dark.text,
-    fontSize: 15,
+    fontSize: 13,
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: colors.dark.cardBorder,
   },
   coverRow: {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
+    marginVertical: 4,
   },
   coverPreview: {
-    width: 60,
-    height: 80,
-    borderRadius: 6,
-    backgroundColor: colors.dark.inputBg,
+    width: 64,
+    height: 88,
+    borderRadius: 8,
+    backgroundColor: colors.dark.surface,
   },
   coverPlaceholder: {
-    width: 60,
-    height: 80,
-    borderRadius: 6,
-    backgroundColor: colors.dark.inputBg,
+    width: 64,
+    height: 88,
+    borderRadius: 8,
+    backgroundColor: colors.dark.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.dark.cardBorder,
   },
   coverInputContainer: {
     flex: 1,
@@ -276,27 +335,28 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: colors.dark.card,
     borderWidth: 1,
-    borderColor: colors.dark.border,
-    paddingVertical: 8,
-    borderRadius: 6,
+    borderColor: colors.dark.cardBorder,
+    paddingVertical: 9,
+    borderRadius: 8,
   },
   pickCoverText: {
-    color: '#FFF',
+    color: colors.dark.accent,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 4,
   },
   chip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: colors.dark.inputBg,
+    borderRadius: 8,
+    backgroundColor: colors.dark.surface,
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: colors.dark.cardBorder,
   },
   chipActive: {
     backgroundColor: colors.dark.primary,
@@ -309,22 +369,24 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   actionsRow: {
-    marginTop: 24,
+    marginTop: 28,
     gap: 10,
   },
   saveBtn: {
+    flexDirection: 'row',
     backgroundColor: colors.dark.primary,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveBtnText: {
     color: '#FFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   cancelBtn: {
     paddingVertical: 12,

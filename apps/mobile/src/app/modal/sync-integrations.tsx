@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NormalizedSteamGame, NormalizedRetroGame, CanonicalGame } from '@savestate/shared';
 import { ApiService } from '../../services/api';
 import { GameRepository } from '../../db/repositories/game-repo';
@@ -20,6 +22,8 @@ import { colors } from '../../theme/colors';
 
 export default function SyncIntegrationsModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 24;
   const [platformTab, setPlatformTab] = useState<'steam' | 'retroachievements'>('steam');
 
   // Steam state
@@ -117,7 +121,7 @@ export default function SyncIntegrationsModal() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       <Text style={styles.modalTitle}>Integrações e Sincronização</Text>
       <Text style={styles.subTitle}>
         Importe sua biblioteca da Steam ou jogos do RetroAchievements preservando seus dados e notas locais.

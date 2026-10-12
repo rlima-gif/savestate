@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CanonicalGame, Playthrough, PlaythroughStatus, PriorityLevel } from '@savestate/shared';
 import { GameRepository } from '../../db/repositories/game-repo';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
@@ -17,9 +19,12 @@ import { colors, statusColors } from '../../theme/colors';
 
 export default function GameDetailsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [game, setGame] = useState<CanonicalGame | null>(null);
   const [playthrough, setPlaythrough] = useState<Playthrough | null>(null);
+
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 24;
 
   const loadData = useCallback(() => {
     if (!id) return;
@@ -40,7 +45,14 @@ export default function GameDetailsScreen() {
   if (!game) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.notFoundText}>Jogo não encontrado</Text>
+        <Ionicons name="game-controller-outline" size={48} color={colors.dark.textMuted} style={{ marginBottom: 12 }} />
+        <Text style={styles.notFoundText}>Jogo não encontrado na biblioteca local</Text>
+        <TouchableOpacity
+          style={[styles.openCampaignBtn, { marginTop: 16, paddingHorizontal: 20 }]}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.openCampaignText}>Voltar</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -93,7 +105,7 @@ export default function GameDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       {/* Header with Cover & Basic Info */}
       <View style={styles.headerRow}>
         {game.coverUrl ? (

@@ -9,9 +9,12 @@ import {
   Image,
   ActivityIndicator,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AssistantMessage,
   HintTier,
@@ -165,7 +168,10 @@ export default function AssistenteScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Context Selector Header */}
       <View style={styles.contextHeader}>
         <View style={styles.contextRow}>
@@ -321,7 +327,7 @@ export default function AssistenteScreen() {
           <Ionicons name="arrow-up" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

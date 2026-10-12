@@ -8,9 +8,11 @@ import {
   Image,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CanonicalGame, Playthrough } from '@savestate/shared';
 import { GameRepository } from '../../db/repositories/game-repo';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
@@ -32,10 +34,13 @@ interface ContinueGameItem {
 
 export default function JogandoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [activeItems, setActiveItems] = useState<ContinueGameItem[]>([]);
   const [timerState, setTimerState] = useState<ActiveTimerState | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [futureNoteInput, setFutureNoteInput] = useState('');
+
+  const bottomPadding = 80 + Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 8);
 
   const loadData = useCallback(() => {
     const pts = PlaythroughRepository.getContinuePlaying();
@@ -133,7 +138,7 @@ export default function JogandoScreen() {
   const otherItems = activeItems.slice(1);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       {/* Active Timer Floating Card */}
       {timerState && (
         <View style={styles.timerCard}>

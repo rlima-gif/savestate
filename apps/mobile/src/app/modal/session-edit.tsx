@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SessionRepository } from '../../db/repositories/session-repo';
 import { colors } from '../../theme/colors';
 
 export default function SessionEditModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 24;
   const { playthroughId } = useLocalSearchParams<{ playthroughId: string }>();
   const [durationInput, setDurationInput] = useState('60');
   const [progressNote, setProgressNote] = useState('');
@@ -44,7 +48,7 @@ export default function SessionEditModal() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       <Text style={styles.modalTitle}>Registrar Tempo de Sessão</Text>
       <Text style={styles.subTitle}>
         Adicione manualmente o tempo que você jogou no console ou portátil.

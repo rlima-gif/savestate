@@ -7,15 +7,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeviceRecord, DeviceKind } from '@savestate/shared';
 import { DeviceRepository } from '../../db/repositories/device-repo';
 import { colors } from '../../theme/colors';
 
 export default function DeviceEditModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 24;
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
 
   // Add form state
@@ -66,7 +70,7 @@ export default function DeviceEditModal() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       <Text style={styles.modalTitle}>Configurações de Hardware & Dispositivos</Text>
       <Text style={styles.subTitle}>
         Mantenha anotações pessoais de presets gráficos, emuladores e locais de saves para cada um dos seus aparelhos.

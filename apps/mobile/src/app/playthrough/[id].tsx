@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Playthrough, CanonicalGame, ChecklistItem, ChecklistCategory, Session } from '@savestate/shared';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
 import { GameRepository } from '../../db/repositories/game-repo';
@@ -19,6 +21,8 @@ import { colors } from '../../theme/colors';
 
 export default function PlaythroughDetailsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 24;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [playthrough, setPlaythrough] = useState<Playthrough | null>(null);
   const [game, setGame] = useState<CanonicalGame | null>(null);
@@ -113,7 +117,7 @@ export default function PlaythroughDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       {/* Campaign Header */}
       <View style={styles.card}>
         <Text style={styles.gameTitle}>{game.title}</Text>

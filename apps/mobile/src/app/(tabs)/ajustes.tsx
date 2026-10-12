@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameRepository } from '../../db/repositories/game-repo';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
 import { DeviceRepository } from '../../db/repositories/device-repo';
@@ -17,6 +19,8 @@ import { colors } from '../../theme/colors';
 
 export default function AjustesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = 80 + Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 8);
   const [stats, setStats] = useState({
     totalGames: 0,
     playing: 0,
@@ -87,7 +91,7 @@ export default function AjustesScreen() {
   const remainingMins = stats.totalMinutes % 60;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
       {/* Statistics Section */}
       <View style={styles.section}>
         <Text style={styles.sectionHeader}>Estatísticas da Jogatina</Text>
