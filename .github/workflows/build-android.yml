@@ -26,6 +26,8 @@ jobs:
       contents: write
     env:
       EXPO_PUBLIC_API_URL: https://savestate-api-staging.safeloot.workers.dev
+      EXPO_PUBLIC_KILO_ASSISTANT_ENABLED: 'true'
+      EXPO_PUBLIC_KILO_MODEL: openrouter/free
       APP_VARIANT: ${{ (inputs.build_type == 'production-aab' && 'production') || (startsWith(github.ref, 'refs/tags/') && 'production') || 'preview' }}
 
     steps:

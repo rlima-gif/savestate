@@ -4,6 +4,7 @@ import {
   CatalogSearchResponse,
   CatalogGameDetails,
 } from '@savestate/shared';
+import { askKiloAssistant, isKiloAssistantEnabled } from './kilo-assistant';
 
 const DEFAULT_API_URL =
   process.env.EXPO_PUBLIC_API_URL || 'https://savestate-api-staging.safeloot.workers.dev';
@@ -85,6 +86,10 @@ export const ApiService = {
   },
 
   async askAssistant(request: AssistantChatRequest): Promise<AssistantChatResponse> {
+    if (isKiloAssistantEnabled()) {
+      return askKiloAssistant(request);
+    }
+
     const base = DEFAULT_API_URL.replace(/\/+$/, '');
     const url = `${base}/api/assistant/chat`;
 
