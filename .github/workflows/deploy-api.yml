@@ -35,15 +35,24 @@ jobs:
       - name: Build Shared Package
         run: pnpm --filter @savestate/shared build
 
-      - name: Apply D1 Staging Migrations & Deploy
+      - name: Apply D1 Staging Migrations
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'apps/api'
-          command: |
-            wrangler d1 migrations apply savestate-db-staging --remote --env staging
-            wrangler deploy --env staging
+          command: d1 migrations apply savestate-db-staging --remote --env staging
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+
+      - name: Deploy Staging Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'apps/api'
+          command: deploy --env staging
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}

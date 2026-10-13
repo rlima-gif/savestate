@@ -65,15 +65,53 @@ export default function SyncIntegrationsModal() {
     let skipped = 0;
 
     const existingGames = GameRepository.getAll();
-    const existingTitles = new Set(existingGames.map((g) => g.title.toLowerCase().trim()));
+    const existingByTitle = new Map(existingGames.map((game) => [game.title.toLowerCase().trim(), game]));
+    const existingBySteamId = new Map(
+      existingGames
+        .filter((game) => game.externalIds.steam)
+        .map((game) => [String(game.externalIds.steam), game])
+    );
 
     for (const g of steamGames) {
-      const isDuplicate = existingTitles.has(g.title.toLowerCase().trim());
-      const gameId = `steam-${g.externalId}`;
+      const matched = existingBySteamId.get(String(g.externalId)) || existingByTitle.get(g.title.toLowerCase().trim());
+      const now = new Date().toISOString();
+      const gameId = matched?.id || `steam-${g.externalId}`;
 
-      if (isDuplicate) {
-        // Preserve manual statuses and notes, just update playtime if higher
-        skipped++;
+      if (matched) {
+        GameRepository.upsert({
+          ...matched,
+          coverUrl: matched.coverUrl || g.coverUrl,
+          platforms: matched.platforms.length > 0 ? matched.platforms : ['PC'],
+          externalIds: { ...matched.externalIds, steam: Number(g.externalId) },
+          fetchedAt: now,
+          updatedAt: now,
+        });
+
+        const current = PlaythroughRepository.getByGameId(matched.id)[0];
+        if (current && g.playtimeMinutes > current.totalPlaytimeMinutes) {
+          PlaythroughRepository.upsert({
+            ...current,
+            totalPlaytimeMinutes: g.playtimeMinutes,
+            lastPlayedAt: g.lastPlayedAt || current.lastPlayedAt,
+            updatedAt: now,
+          });
+          updated++;
+        } else if (!current) {
+          PlaythroughRepository.upsert({
+            id: `pt-steam-${g.externalId}`,
+            gameId: matched.id,
+            status: g.playtimeMinutes > 0 ? 'paused' : 'backlog',
+            priority: 'medium',
+            isReplay: false,
+            totalPlaytimeMinutes: g.playtimeMinutes,
+            lastPlayedAt: g.lastPlayedAt,
+            createdAt: now,
+            updatedAt: now,
+          });
+          updated++;
+        } else {
+          skipped++;
+        }
         continue;
       }
 
@@ -85,9 +123,9 @@ export default function SyncIntegrationsModal() {
         platforms: ['PC'],
         source: 'steam',
         externalIds: { steam: g.externalId },
-        fetchedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        fetchedAt: now,
+        createdAt: now,
+        updatedAt: now,
       };
 
       GameRepository.upsert(canonicalGame);
@@ -98,8 +136,8 @@ export default function SyncIntegrationsModal() {
         platform: 'PC',
         store: 'Steam',
         ownershipType: 'digital',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       });
 
       PlaythroughRepository.upsert({
@@ -110,14 +148,93 @@ export default function SyncIntegrationsModal() {
         isReplay: false,
         totalPlaytimeMinutes: g.playtimeMinutes,
         lastPlayedAt: g.lastPlayedAt,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       });
 
+      existingByTitle.set(g.title.toLowerCase().trim(), canonicalGame);
+      existingBySteamId.set(String(g.externalId), canonicalGame);
       added++;
     }
 
     setImportSummary(`Importação concluída: ${added} adicionados, ${updated} atualizados, ${skipped} já existentes.`);
+  };
+
+  const handleImportRetroGames = () => {
+    let added = 0;
+    let linked = 0;
+    const existingGames = GameRepository.getAll();
+    const byTitle = new Map(existingGames.map((game) => [game.title.toLowerCase().trim(), game]));
+    const byRetroId = new Map(
+      existingGames
+        .filter((game) => game.externalIds.retroachievements)
+        .map((game) => [String(game.externalIds.retroachievements), game])
+    );
+
+    for (const retroGame of raGames) {
+      const now = new Date().toISOString();
+      const matched = byRetroId.get(String(retroGame.externalId)) || byTitle.get(retroGame.title.toLowerCase().trim());
+
+      if (matched) {
+        GameRepository.upsert({
+          ...matched,
+          coverUrl: matched.coverUrl || retroGame.coverUrl,
+          platforms: matched.platforms.length > 0 ? matched.platforms : [retroGame.consoleName],
+          externalIds: { ...matched.externalIds, retroachievements: retroGame.externalId },
+          fetchedAt: now,
+          updatedAt: now,
+        });
+        const current = PlaythroughRepository.getByGameId(matched.id)[0];
+        if (!current) {
+          PlaythroughRepository.upsert({
+            id: `pt-ra-${retroGame.externalId}`,
+            gameId: matched.id,
+            status: retroGame.isMastered ? 'completed' : 'beaten',
+            priority: 'medium',
+            isReplay: false,
+            totalPlaytimeMinutes: 0,
+            notes: `RetroAchievements: ${retroGame.numAwarded}/${retroGame.numAchievements} conquistas desbloqueadas.`,
+            finishDate: now,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        linked++;
+        continue;
+      }
+
+      const gameId = `ra-${retroGame.externalId}`;
+      const game: CanonicalGame = {
+        id: gameId,
+        title: retroGame.title,
+        coverUrl: retroGame.coverUrl,
+        genres: ['RetroAchievements'],
+        platforms: [retroGame.consoleName],
+        source: 'retroachievements',
+        externalIds: { retroachievements: retroGame.externalId },
+        fetchedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      };
+      GameRepository.upsert(game);
+      PlaythroughRepository.upsert({
+        id: `pt-${gameId}`,
+        gameId,
+        status: retroGame.isMastered ? 'completed' : 'beaten',
+        priority: 'medium',
+        isReplay: false,
+        totalPlaytimeMinutes: 0,
+        notes: `RetroAchievements: ${retroGame.numAwarded}/${retroGame.numAchievements} conquistas desbloqueadas.`,
+        finishDate: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      byTitle.set(game.title.toLowerCase().trim(), game);
+      byRetroId.set(String(retroGame.externalId), game);
+      added++;
+    }
+
+    setImportSummary(`RetroAchievements: ${added} jogos adicionados; ${linked} vinculados a jogos já cadastrados.`);
   };
 
   return (
@@ -234,7 +351,7 @@ export default function SyncIntegrationsModal() {
             autoCapitalize="none"
           />
 
-          <Text style={[styles.label, { marginTop: 10 }]}>Web API Key (Opcional):</Text>
+          <Text style={[styles.label, { marginTop: 10 }]}>Web API Key:</Text>
           <TextInput
             style={styles.input}
             value={raApiKey}
@@ -244,30 +361,71 @@ export default function SyncIntegrationsModal() {
             secureTextEntry
           />
           <Text style={styles.hint}>
-            Importa o catálogo de jogos completados (com 100% de conquistas). Sua chave é transmitida de forma efêmera e não fica salva no servidor.
+            A chave é necessária para consultar sua conta. Importamos o progresso disponível e vinculamos títulos existentes sem apagar seus dados locais.
           </Text>
 
           <TouchableOpacity
             style={styles.fetchBtn}
             onPress={async () => {
-              if (!raUsername.trim()) return;
+              if (!raUsername.trim()) {
+                Alert.alert('Informe seu usuário', 'Digite seu nome de usuário do RetroAchievements.');
+                return;
+              }
               setIsLoading(true);
+              setImportSummary(null);
               try {
                 const res = await ApiService.syncRetroAchievements(raUsername.trim(), raApiKey.trim());
                 if (res.requiresKey) {
                   Alert.alert('Web API Key Necessária', res.message);
                 } else {
                   setRaGames(res.games || []);
+                  if (!(res.games || []).length) {
+                    Alert.alert('Nenhum jogo encontrado', 'A conta não retornou jogos concluídos para importar.');
+                  }
                 }
               } catch (err: any) {
                 Alert.alert('Erro', err.message);
               } finally {
+                setRaApiKey('');
                 setIsLoading(false);
               }
             }}
           >
-            <Text style={styles.fetchBtnText}>Consultar Jogos Completados</Text>
+            {isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.fetchBtnText}>Consultar Jogos Concluídos</Text>}
           </TouchableOpacity>
+
+          {raGames.length > 0 && (
+            <View style={styles.previewContainer}>
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewTitle}>{raGames.length} jogos encontrados</Text>
+                <TouchableOpacity style={styles.importBtn} onPress={handleImportRetroGames}>
+                  <Text style={styles.importBtnText}>Importar</Text>
+                </TouchableOpacity>
+              </View>
+
+              {importSummary && (
+                <View style={styles.summaryBadge}>
+                  <Text style={styles.summaryText}>{importSummary}</Text>
+                </View>
+              )}
+
+              {raGames.slice(0, 20).map((game) => (
+                <View key={game.externalId} style={styles.previewRow}>
+                  {game.coverUrl ? <Image source={{ uri: game.coverUrl }} style={styles.previewCover} /> : null}
+                  <View style={styles.previewInfo}>
+                    <Text style={styles.gameTitle} numberOfLines={1}>{game.title}</Text>
+                    <Text style={styles.gameTime}>
+                      {game.consoleName} · {game.numAwarded}/{game.numAchievements} conquistas
+                    </Text>
+                  </View>
+                  {game.isMastered && <Ionicons name="trophy" size={16} color={colors.dark.gold} />}
+                </View>
+              ))}
+              {raGames.length > 20 && (
+                <Text style={styles.moreCount}>... e mais {raGames.length - 20} jogos.</Text>
+              )}
+            </View>
+          )}
         </View>
       )}
 

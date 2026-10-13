@@ -8,9 +8,10 @@ Este documento detalha o funcionamento, engenharia de prompt, tratamento de imag
 
 O SaveState utiliza a **API oficial do Google Gemini** orquestrada através do Cloudflare Workers:
 
-- **Modelo Padrão:** `gemini-3.5-flash-lite` (Recomendado na documentação oficial de 2026 para tarefas agenticas de alto volume, suporte nativo multimodal a texto e imagem, elegível para cota gratuita e com tempo de resposta sub-segundo).
-- **Modelo Alternativo:** `gemini-3.8-flash` (Para raciocínio complexo e quebra-cabeças avançados de múltiplos passos).
-- **Configuração:** O modelo é configurável via variável de ambiente `GEMINI_MODEL` no Cloudflare Workers sem necessidade de recompilar o aplicativo mobile.
+- **Modelo configurado:** `gemini-2.5-flash`.
+- **Configuração:** `GEMINI_MODEL` é definido por ambiente em `apps/api/wrangler.jsonc`; o cliente Android não recebe a chave do provedor.
+- **Credencial:** O operador do serviço precisa configurar `GEMINI_API_KEY` como secret do Cloudflare. O usuário do app não precisa criar uma conta Gemini nem inserir uma chave.
+- **Disponibilidade:** Sem a chave do operador ou quando o provedor limita/recusa a solicitação, o app oferece links para guias externos. Isso não significa que o uso do serviço de IA seja garantidamente gratuito.
 
 ---
 
@@ -49,14 +50,9 @@ O assistente adota o conceito de **Progressão Escalonada de Dicas**:
 
 ---
 
-## 💰 4. Matriz de Custos e Cotas
+## 💰 4. Custos e limites
 
-| Componente | Nível Gratuito / Custo Base | Comportamento em Caso de Escala |
-|---|---|---|
-| **Google Gemini API** | Cota gratuita padrão (RPM / RPD) no AI Studio | `gemini-3.5-flash-lite`: \$0.10 por 1M tokens de entrada (texto/imagem), \$0.40 por 1M tokens de saída. |
-| **Cloudflare Workers** | 100.000 requisições/dia gratuitas | \$5/mês no plano Workers Paid para 10M requisições/mês. |
-| **Cloudflare D1** | 5M leituras e 100k escritas/dia gratuitas | Extremamente barato mesmo em grande escala. |
-| **RAWG API** | 20.000 requisições/mês gratuitas | Utiliza cache no D1 e catálogo offline para evitar exceder. |
+O aplicativo não embute uma credencial pública de IA nem garante uma cota gratuita permanente. O proprietário do backend configura as credenciais e fica sujeito às cotas, preços e regras vigentes de cada provedor. Confira esses termos antes de abrir o serviço ao público. O limite por IP e o cache ajudam a controlar abuso e chamadas repetidas; guias externos continuam disponíveis como alternativa quando a IA não responde.
 
 ---
 

@@ -8,7 +8,8 @@ import { colors } from '../../theme/colors';
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   // Safe padding for both 3-button navigation (high inset) and gesture navigation
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  // Android's edge-to-edge navigation can report a very small inset on some OEMs.
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 8);
 
   return (
     <Tabs
@@ -19,16 +20,16 @@ export default function TabsLayout() {
           backgroundColor: colors.dark.tabBarBg,
           borderTopColor: colors.dark.border,
           borderTopWidth: 1,
-          height: 56 + bottomInset,
+          height: 62 + bottomInset,
           paddingBottom: bottomInset,
-          paddingTop: 8,
-          elevation: 12,
+          paddingTop: 7,
+          elevation: 18,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '700',
-          letterSpacing: 0.2,
-          marginTop: 2,
+          letterSpacing: 0.35,
+          marginTop: 1,
         },
         headerStyle: {
           backgroundColor: colors.dark.background,
@@ -38,9 +39,9 @@ export default function TabsLayout() {
         headerTintColor: colors.dark.text,
         headerTitleStyle: {
           color: colors.dark.text,
-          fontWeight: '800',
-          fontSize: 18,
-          letterSpacing: 0.2,
+          fontWeight: '900',
+          fontSize: 19,
+          letterSpacing: -0.3,
         },
       }}
     >

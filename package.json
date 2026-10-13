@@ -6,7 +6,6 @@
   "scripts": {
     "build": "pnpm --filter @savestate/shared build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "mobile:start": "pnpm --filter @savestate/mobile start",
     "mobile:android": "pnpm --filter @savestate/mobile android",

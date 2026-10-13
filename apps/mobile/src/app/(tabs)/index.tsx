@@ -328,6 +328,37 @@ export default function LibraryScreen() {
             </View>
           ) : (
             <View style={styles.sectionsContainer}>
+              <View style={styles.collectionHero}>
+                <View style={styles.collectionHeroTop}>
+                  <View style={styles.collectionHeroMark}>
+                    <Ionicons name="game-controller" size={22} color={colors.dark.primary} />
+                  </View>
+                  <View style={styles.collectionHeroCopy}>
+                    <Text style={styles.collectionEyebrow}>SEU ARQUIVO DE JOGOS</Text>
+                    <Text style={styles.collectionHeroTitle}>
+                      {items.length} {items.length === 1 ? 'jogo salvo' : 'jogos salvos'}
+                    </Text>
+                  </View>
+                  <Ionicons name="sparkles" size={18} color={colors.dark.accent} />
+                </View>
+                <View style={styles.collectionStatsRow}>
+                  <View style={styles.collectionStat}>
+                    <Text style={styles.collectionStatValue}>{playingItems.length}</Text>
+                    <Text style={styles.collectionStatLabel}>JOGANDO</Text>
+                  </View>
+                  <View style={styles.collectionStatDivider} />
+                  <View style={styles.collectionStat}>
+                    <Text style={styles.collectionStatValue}>{backlogItems.length}</Text>
+                    <Text style={styles.collectionStatLabel}>NO BACKLOG</Text>
+                  </View>
+                  <View style={styles.collectionStatDivider} />
+                  <View style={styles.collectionStat}>
+                    <Text style={styles.collectionStatValue}>{beatenItems.length}</Text>
+                    <Text style={styles.collectionStatLabel}>CONCLUÍDOS</Text>
+                  </View>
+                </View>
+              </View>
+
               {/* SECTION: Jogando Agora / Continuar */}
               {playingItems.length > 0 && (
                 <View style={styles.sectionBlock}>
@@ -624,8 +655,77 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sectionsContainer: {
-    paddingVertical: 14,
-    gap: 20,
+    paddingTop: 14,
+    paddingBottom: 18,
+    gap: 22,
+  },
+  collectionHero: {
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: colors.dark.card,
+    borderWidth: 1,
+    borderColor: colors.dark.cardBorder,
+    borderTopColor: colors.dark.primary,
+    borderTopWidth: 2,
+  },
+  collectionHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  collectionHeroMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: '#35241E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  collectionHeroCopy: {
+    flex: 1,
+  },
+  collectionEyebrow: {
+    color: colors.dark.accent,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    marginBottom: 3,
+  },
+  collectionHeroTitle: {
+    color: colors.dark.text,
+    fontSize: 19,
+    fontWeight: '900',
+    letterSpacing: -0.35,
+  },
+  collectionStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.dark.border,
+  },
+  collectionStat: {
+    flex: 1,
+    gap: 3,
+  },
+  collectionStatValue: {
+    color: colors.dark.text,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  collectionStatLabel: {
+    color: colors.dark.textMuted,
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  collectionStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.dark.border,
+    marginHorizontal: 10,
   },
   sectionBlock: {
     gap: 10,
