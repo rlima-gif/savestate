@@ -8,8 +8,8 @@ Este documento detalha o processo de implantação da API no Cloudflare Workers,
 
 ### Pré-requisitos
 - Conta no Cloudflare
-- Chave API do Google AI Studio (`GEMINI_API_KEY`)
-- Chave da API RAWG (`RAWG_API_KEY`, opcional)
+- Chave API do Google AI Studio (`GEMINI_API_KEY`) apenas se a rota alternativa Cloudflare/Gemini for habilitada.
+- Credenciais de app da Twitch para IGDB (`TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`), guardadas apenas como secrets do Worker.
 
 ### Configuração do Cloudflare D1
 Crie os bancos de dados D1 para os ambientes de homologação e produção:
@@ -37,15 +37,25 @@ npx wrangler d1 migrations apply savestate-db-production --remote --env producti
 ```
 
 ### Configurar Segredos no Cloudflare
+
+Os usuários do app não precisam de conta Twitch/IGDB nem de chave. Somente o proprietário configura as credenciais do backend. A IGDB informa que oferece parceria para produtos monetizados e solicita atribuição visível; confirme a parceria e os direitos de uso das imagens antes da distribuição comercial.
+
+No GitHub, configure `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` em **Settings > Secrets and variables > Actions**. O workflow de staging sincroniza essas credenciais com o Worker sem colocá-las no código. `GEMINI_API_KEY` é opcional e só é necessária se o app usar a rota Cloudflare/Gemini.
+
+Configuração manual em um ambiente com Wrangler autenticado:
 ```bash
 # Staging
 npx wrangler secret put GEMINI_API_KEY --env staging
-npx wrangler secret put RAWG_API_KEY --env staging
+npx wrangler secret put TWITCH_CLIENT_ID --env staging
+npx wrangler secret put TWITCH_CLIENT_SECRET --env staging
 
 # Produção
 npx wrangler secret put GEMINI_API_KEY --env production
-npx wrangler secret put RAWG_API_KEY --env production
+npx wrangler secret put TWITCH_CLIENT_ID --env production
+npx wrangler secret put TWITCH_CLIENT_SECRET --env production
 ```
+
+Para desenvolvimento local, crie `apps/api/.dev.vars` (arquivo ignorado pelo Git) com as mesmas variáveis. Nunca use o prefixo `EXPO_PUBLIC_` para credenciais.
 
 ### Deploy da API
 ```bash
@@ -99,7 +109,7 @@ npx eas build --platform android --profile production
 - **Modo de Emergência (Kill-Switch da IA):**
   Caso a cota da IA seja atacada ou ocorra algum comportamento imprevisto, o assistente pode ser desativado imediatamente sem necessidade de novo deploy:
   ```bash
-  # Altere a variável de ambiente no Cloudflare Dashboard ou via wrangler
-  wrangler secret put AI_FEATURE_ENABLED # defina como "false"
+  # Altere AI_FEATURE_ENABLED para "false" em apps/api/wrangler.jsonc
+  # no ambiente desejado e publique novamente o Worker.
   ```
   O aplicativo mobile automaticamente continuará funcionando 100% offline para todas as funções da biblioteca, checklists, sessões e fornecerá links de guias externos.

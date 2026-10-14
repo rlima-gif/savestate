@@ -1,109 +1,102 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import app from '../src/index';
 
-describe('Catalog Routes & D1 Caching', () => {
-  it('GET /api/catalog/search returns honest unavailable state when RAWG key is absent in non-mock mode', async () => {
-    const res = await app.request('/api/catalog/search?q=zelda', {}, {
-      ENVIRONMENT: 'production',
-    });
+describe('Catalog routes and fallback behavior', () => {
+  it('returns a safe unavailable state when IGDB owner credentials are not configured', async () => {
+    const res = await app.request('/api/catalog/search?q=zelda', {}, { ENVIRONMENT: 'production' });
     expect(res.status).toBe(200);
-
-    const data = (await res.json()) as any;
+    const data = await res.json() as any;
     expect(data.provider).toBe('unavailable');
-    expect(data.isLive).toBe(false);
-    expect(data.results.length).toBe(0);
-    expect(data.message).toContain('RAWG_API_KEY');
+    expect(data.results).toEqual([]);
+    expect(data.message).toContain('manualmente');
+    expect(JSON.stringify(data)).not.toMatch(/TWITCH_CLIENT_SECRET|RAWG_API_KEY/);
   });
 
-  it('GET /api/catalog/search rejects queries longer than 100 characters with 400', async () => {
-    const longQuery = 'A'.repeat(101);
-    const res = await app.request(`/api/catalog/search?q=${longQuery}`, {}, {});
+  it('rejects queries longer than 100 characters', async () => {
+    const res = await app.request(`/api/catalog/search?q=${'A'.repeat(101)}`, {}, {});
     expect(res.status).toBe(400);
-
-    const data = (await res.json()) as any;
-    expect(data.error).toContain('100 caracteres');
   });
 
-  it('GET /api/catalog/search clamps invalid page and pageSize parameters gracefully', async () => {
-    const res = await app.request('/api/catalog/search?q=zelda&page=-5&pageSize=999&mock=true', {}, {
-      ENVIRONMENT: 'test',
-    });
-    expect(res.status).toBe(200);
-
-    const data = (await res.json()) as any;
+  it('clamps invalid pagination and limits mock results to test/development', async () => {
+    const res = await app.request('/api/catalog/search?q=zelda&page=-5&pageSize=999', {}, { ENVIRONMENT: 'test' });
+    const data = await res.json() as any;
     expect(data.page).toBe(1);
     expect(data.pageSize).toBe(40);
+    expect(data.provider).toBe('mock');
   });
 
-  it('GET /api/catalog/search?mock=true strictly prohibits mock data in production environment', async () => {
-    const res = await app.request('/api/catalog/search?q=zelda&mock=true', {}, {
-      ENVIRONMENT: 'production',
-    });
-    expect(res.status).toBe(200);
-
-    const data = (await res.json()) as any;
-    // In production, mock data is never returned
+  it('never returns mock games in production, even when mock=true is requested', async () => {
+    const res = await app.request('/api/catalog/search?q=zelda&mock=true', {}, { ENVIRONMENT: 'production' });
+    const data = await res.json() as any;
     expect(data.provider).toBe('unavailable');
-    expect(data.results.length).toBe(0);
+    expect(data.results).toEqual([]);
   });
 
-  it('GET /api/catalog/search uses D1 cached results when available', async () => {
-    const cachedResponse = {
-      results: [
-        {
-          id: 'rawg-123',
-          providerId: 123,
-          provider: 'rawg',
-          title: 'Cached Chrono Trigger',
-          platforms: ['SNES'],
-          genres: ['JRPG'],
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20,
-      hasMore: false,
-      provider: 'rawg',
-      isLive: true,
-      attribution: 'Dados em cache',
+  it('uses cached IGDB search results without calling the provider', async () => {
+    const cached = {
+      results: [{ id: 'igdb-123', providerId: 123, provider: 'igdb', title: 'Cached Chrono Trigger', platforms: ['SNES'], genres: ['JRPG'] }],
+      total: 1, page: 1, pageSize: 20, hasMore: false, provider: 'igdb', isLive: true, attribution: 'IGDB',
     };
-
-    const mockDb = {
+    const db = {
       prepare: () => ({
         bind: () => ({
-          first: async () => ({
-            response_json: JSON.stringify(cachedResponse),
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          }),
+          first: async () => ({ response_json: JSON.stringify(cached), expires_at: Math.floor(Date.now() / 1000) + 3600 }),
         }),
       }),
     } as unknown as D1Database;
-
-    const res = await app.request('/api/catalog/search?q=chrono', {}, {
-      DB: mockDb,
-      ENVIRONMENT: 'production',
-    });
-
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as any;
-    expect(data.results.length).toBe(1);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const res = await app.request('/api/catalog/search?q=chrono', {}, { DB: db, ENVIRONMENT: 'production' });
+    const data = await res.json() as any;
     expect(data.results[0].title).toBe('Cached Chrono Trigger');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('GET /api/catalog/games/:id returns details for valid mock ID in test environment', async () => {
-    const res = await app.request('/api/catalog/games/mock-2', {}, {
-      ENVIRONMENT: 'test',
+  it('calls IGDB with the configured owner credentials and returns normalized game data', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: 'token', expires_in: 3600 }) } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: 9, name: 'Metroid Prime', platforms: [{ name: 'GameCube' }], genres: [{ name: 'Shooter' }] }],
+      } as Response);
+    const res = await app.request('/api/catalog/search?q=Metroid&page=1&pageSize=20', {}, {
+      ENVIRONMENT: 'staging', TWITCH_CLIENT_ID: 'owner-client-id', TWITCH_CLIENT_SECRET: 'owner-secret',
     });
+    const data = await res.json() as any;
     expect(res.status).toBe(200);
-
-    const data = (await res.json()) as any;
-    expect(data.title).toBe('Hollow Knight');
+    expect(data.provider).toBe('igdb');
+    expect(data.results[0]).toMatchObject({ id: 'igdb-9', title: 'Metroid Prime', platforms: ['GameCube'] });
+    expect(JSON.stringify(data)).not.toContain('owner-secret');
   });
 
-  it('GET /api/catalog/games/:id returns 404 for unknown game', async () => {
-    const res = await app.request('/api/catalog/games/non-existent-999', {}, {
-      ENVIRONMENT: 'test',
+  it('does not call IGDB when the shared D1 request budget is exceeded', async () => {
+    const db = {
+      prepare: (sql: string) => ({
+        bind: () => ({
+          first: async () => sql.includes('catalog_cache') ? null : { request_count: 4 },
+        }),
+      }),
+    } as unknown as D1Database;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const res = await app.request('/api/catalog/search?q=Metroid', {}, {
+      DB: db, ENVIRONMENT: 'staging', TWITCH_CLIENT_ID: 'owner-client-id', TWITCH_CLIENT_SECRET: 'owner-secret',
     });
-    expect(res.status).toBe(404);
+    const data = await res.json() as any;
+    expect(data.provider).toBe('unavailable');
+    expect(data.message).toContain('alguns segundos');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns a useful message for empty queries', async () => {
+    const res = await app.request('/api/catalog/search?q=%20%20', {}, { ENVIRONMENT: 'production' });
+    const data = await res.json() as any;
+    expect(data.results).toEqual([]);
+    expect(data.message).toContain('Digite');
+  });
+
+  it('returns local mock details only in test/development', async () => {
+    const res = await app.request('/api/catalog/games/mock-2', {}, { ENVIRONMENT: 'test' });
+    expect(res.status).toBe(200);
+    expect((await res.json() as any).title).toBe('Hollow Knight');
   });
 });

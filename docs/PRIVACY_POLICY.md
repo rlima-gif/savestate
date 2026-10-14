@@ -17,19 +17,26 @@ O **SaveState** é um aplicativo voltado para gerenciamento pessoal de backlog d
 
 ---
 
-## 2. Processamento de Dados pelo Assistente de IA (Google Gemini)
+## 2. Busca do Catálogo de Jogos (IGDB)
+
+Quando você busca um jogo, o título digitado é enviado por HTTPS ao backend do SaveState e consultado na IGDB. A biblioteca, status, notas e progresso local não são enviados junto com a busca. O backend mantém resultados de busca em cache por até 6 horas e detalhes por até 7 dias para reduzir chamadas repetidas. O app não exige que você tenha conta IGDB ou Twitch.
+
+O catálogo pode retornar título, plataformas, gêneros, data, avaliação e capa. Os dados e imagens são apresentados com atribuição à IGDB. O uso comercial do provedor e das imagens depende da autorização/termos aplicáveis ao SaveState; estes devem ser confirmados antes da distribuição comercial.
+
+## 3. Processamento de Dados pelo Assistente de IA
 
 O SaveState disponibiliza um assistente gamer opcional para esclarecimento de dúvidas e análise visual de quebra-cabeças e telas de jogos:
 
 - **Envio Voluntário:** O assistente só processa informações quando você envia ativamente uma mensagem em texto ou anexa uma foto/captura de tela na aba "Assistente".
-- **Transmissão Segura:** As requisições são transmitidas de ponta a ponta via protocolo seguro criptografado (HTTPS / TLS 1.3) através de um backend proxy no Cloudflare Workers para a API do Google Gemini.
-- **Processamento Efêmero:** O texto da pergunta, o contexto imediato do jogo e a imagem enviada são utilizados estritamente durante o tempo necessário para gerar a resposta. **O SaveState não armazena suas imagens ou perguntas em nenhum banco de dados remoto.**
+- **Transmissão Segura:** As requisições são enviadas por HTTPS. Na configuração atual do app, o cliente usa o gateway da Kilo AI, que roteia a solicitação ao modelo configurado. O backend Cloudflare/Gemini é uma alternativa de implantação, não um fallback automático.
+- **Dados encaminhados:** A pergunta, contexto de jogo e imagem opcional são enviados ao gateway e ao provedor/modelo selecionado para produzir a resposta. O tratamento e a retenção no gateway e no modelo seguem os termos deles; não envie conteúdo pessoal ou privado.
+- **Retenção pelo SaveState:** O app não grava as conversas ou imagens no D1 do SaveState. O provedor externo pode aplicar suas próprias regras de retenção.
 - **Metadados e Privacidade de Imagens:** Fotos capturadas ou selecionadas da galeria têm metadados sensíveis (como localização EXIF) removidos e são redimensionadas antes do envio.
 - **Modo Offline e Alternativas:** Caso não haja conexão ou você prefira não usar inteligência artificial, o aplicativo fornece links diretos para guias e detonados públicos da comunidade (GameFAQs, Steam Guides, YouTube e wikis).
 
 ---
 
-## 3. Integrações de Plataformas (Steam e RetroAchievements)
+## 4. Integrações de Plataformas (Steam e RetroAchievements)
 
 O aplicativo oferece importação opcional de bibliotecas públicas e registros de jogos:
 
@@ -38,14 +45,14 @@ O aplicativo oferece importação opcional de bibliotecas públicas e registros 
 
 ---
 
-## 4. Retenção e Exclusão de Dados
+## 5. Retenção e Exclusão de Dados
 
 - **Controle pelo Usuário:** Você pode editar ou excluir qualquer jogo, sessão ou anotação diretamente pela interface do aplicativo a qualquer instante.
 - **Exclusão Completa:** Ao desinstalar o aplicativo do dispositivo Android, o banco de dados SQLite local e todos os arquivos em cache são completamente removidos pelo sistema operacional.
 
 ---
 
-## 5. Permissões Solicitadas no Android
+## 6. Permissões Solicitadas no Android
 
 - **Câmera (`android.permission.CAMERA`):** Solicitada apenas se você escolher fotografar a tela do jogo ou TV diretamente pelo assistente.
 - **Galeria de Imagens (`android.permission.READ_MEDIA_IMAGES`):** Solicitada apenas se você escolher carregar uma captura de tela da galeria para o assistente ou capa de jogo.
@@ -54,7 +61,7 @@ Nenhuma permissão em segundo plano, rastreamento de localização ou acesso a c
 
 ---
 
-## 6. Contato e Responsável
+## 7. Contato e Responsável
 
 Para dúvidas sobre esta política ou suporte ao aplicativo:
 - **E-mail de Suporte:** `[PENDENTE: Inserir e-mail oficial de suporte do proprietário]`

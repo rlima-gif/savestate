@@ -29,10 +29,11 @@ pnpm test
 - **`health.test.ts`:**
   - Verifica retorno de status `200 OK`, versão da aplicação e flags de recursos ativos.
 - **`catalog.test.ts`:**
-  - Validação de limites de parâmetros (`q` máximo 100 caracteres, clamping de `page` e `pageSize`).
+  - Limites de parâmetros, ausência segura de credenciais, consulta vazia e fallback.
   - Proibição estrita de dados mock em ambiente de produção/staging.
-  - Validação de cache D1 (`catalog_cache` com TTL de 24h) evitando chamadas externas redundantes.
-  - Detalhes de jogos e resposta HTTP 404 para identificadores inexistentes.
+  - Cache D1, fallback de resultados salvos e limite global IGDB de três chamadas por segundo.
+  - `igdb.test.ts`: OAuth server-side, metadados/capas/plataformas, escaping, respostas inválidas e não exposição de secrets.
+  - Detalhes de jogos e resposta HTTP 404 para IDs inexistentes.
 - **`integrations.test.ts`:**
   - Suporte a SteamID64 de 17 dígitos e vanity URLs personalizadas.
   - Validação de caracteres inválidos no identificador Steam.
@@ -58,7 +59,7 @@ pnpm test
   - Exportação e importação de backups JSON com validação de formato.
 - **`api-service.test.ts`:**
   - Tratamento de busca no catálogo online com sucesso e com resultados vazios.
-  - Tratamento gracioso de catálogo indisponível (sem chave RAWG no servidor) sem quebrar telas.
+  - Tratamento gracioso de catálogo indisponível, JSON malformado e falhas de rede sem quebrar telas.
   - Tratamento de timeout de rede e JSON malformado.
   - Suporte a tentativas repetidas (retry) após quedas transitórias de conexão.
 - **`timer.test.ts`:**

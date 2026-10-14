@@ -1,106 +1,45 @@
-# Relatório de Transição e Handoff Técnico — SaveState
+# SaveState — Current Engineering Handoff
 
-Este documento foi elaborado para permitir a transição imediata e transparente para qualquer desenvolvedor ou agente de IA que assuma a manutenção ou expansão do SaveState.
+## Current branch and scope
 
----
+- Repository: `https://github.com/rlima-gif/savestate`.
+- Work is based on the Antigravity feature branch at commit `1b55ffe` (`codex/savestate-redesign`).
+- This pass fixes the catalog search flow and replaces the RAWG-only backend adapter with IGDB/Twitch server-to-server integration.
+- Preserve offline-first library data and all existing Kilo assistant, Android UX, and Steam/RetroAchievements work.
+- Do not merge to `master`, deploy production, or publish to Google Play as part of catalog setup.
 
-## 📍 1. Localização e Estado do Projeto
+## Catalog design
 
-- **Repositório Git:** `https://github.com/rlima-gif/savestate` (público).
-- **Estrutura de Monorepo:** pnpm workspaces (`packages/shared`, `apps/api`, `apps/mobile`).
-- **Último commit no master verificado em 2026-10-13:** `70371873ba8ec6a7060b4b441228c5bbd3c9deec`.
-- **Workflows desse commit:** CI, Build Android e Deploy Staging falharam. Os erros conhecidos são `node:sqlite` indisponível no Node 20 do CI, sintaxe inválida do signingConfig Gradle e comando `wrangler` duplicado no deploy.
-- **Validação local no branch de trabalho Codex:** pacote compartilhado, typecheck dos três workspaces, testes e exportação Android passaram após instalar as dependências. O prebuild gerou `compileSdkVersion: 36`, `targetSdkVersion: 36` e `buildToolsVersion: 36.0.0`, com `signingConfig` corrigido.
-- **Expo Doctor:** a execução atual passou 15/18 verificações; as três restantes falharam ao acessar endpoints Expo/RN por erro DNS, não por incompatibilidade reportada.
-- **Build Android nativo:** ainda não executado localmente; o ambiente não tem Android SDK. O workflow do GitHub precisa ser repetido após enviar as correções.
-- **Backend Staging:** há uma URL de staging documentada, mas o deploy do commit mais recente falhou antes de aplicar migrações ou publicar.
-- **Produção/Play Store:** nenhum deploy de produção nem publicação foi executado.
+- Mobile client calls `GET /api/catalog/search` and `GET /api/catalog/games/:id` on the SaveState Worker.
+- Worker authenticates with Twitch app credentials and calls IGDB. No provider credentials or access tokens are included in the APK, Expo public variables, API responses, or logs.
+- Search responses are cached in D1 for 6 hours; game details are cached for 7 days. An app token cache in D1 is private to the Worker and lets isolates reuse the same token.
+- A single atomic D1 counter caps provider requests at 3 per second, below the documented IGDB ceiling of 4 per second.
+- Cached results remain available when the provider is temporarily unavailable. The mobile screen reports stale/unavailable status and provides retry and manual-add actions.
+- Manual game creation, library, backlog, notes, and progress remain available without any network or catalog configuration.
+- The app shows a permanent IGDB attribution link on the catalog screen.
 
----
+## Owner setup still required
 
-## ⚙️ 2. Resumo dos Entregáveis Implementados
+1. Register a Twitch developer application and obtain `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+2. Ask IGDB about commercial partnership and confirm permitted use of catalog metadata and cover images before monetizing or publicly distributing the app. Their API documentation states that commercial products require partnership contact and visible attribution.
+3. Store the credentials as Cloudflare Worker secrets for staging. GitHub Actions can sync them when `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are configured as repository Actions secrets. Users of the app do not need Twitch/IGDB accounts or keys.
+4. Apply D1 migrations and deploy staging, then test `/health`, a live title search, and game details. Deployment was not run during this code pass.
+5. Configure production D1 IDs/secrets and complete the commercial approval before preparing a Play Store release.
 
-1. **`packages/shared`:**
-   - Tipos completos para Jogos Canônicos, Exemplares em Posse (Owned Copies), Campanhas (Playthroughs), Sessões, Checklists, Dispositivos e Assistente.
-   - Schemas Zod de validação runtime.
-   - Motor transparente de recomendações ponderado por prioridade, tempo de sessão e vencimento de assinaturas.
-   - Sistema de exportação e restauração de backup JSON e planilhas CSV com UTF-8 BOM.
-   - Normalizadores de dados da Comunidade Steam (XML público) e RetroAchievements.
-   - Templates de prompt em Português do Brasil com proteção anti-spoiler e anti-injeção de prompt.
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the exact commands and GitHub secret names.
 
-2. **`apps/api` (Cloudflare Workers + D1):**
-   - Roteador Hono com CORS e tratamento global de erros.
-   - Endpoint de saúde: `GET /health` (valida conexão com D1).
-   - Endpoint de busca de catálogo: `GET /api/catalog/search` e `GET /api/catalog/games/:id` com provedor RAWG, cache D1 e resposta de indisponibilidade explícita quando a chave não existe.
-   - Endpoint de assistente com IA: `POST /api/assistant/chat` integrando Google Gemini (`gemini-2.5-flash`) com suporte a texto e visão (fotos e screenshots), limites por IP via D1, chave mestre de interrupção e fallback automático para guias da comunidade.
-   - Endpoints de sincronização de biblioteca: `POST /api/integrations/steam/sync` e `POST /api/integrations/retroachievements/sync`.
-   - Endpoint de guias: `GET /api/guides/search`.
-   - Migração SQL do Cloudflare D1 (`migrations/0001_init.sql`); o workflow de staging do último commit falhou antes de confirmar a aplicação remota.
+## Validation commands
 
-3. **`apps/mobile` (React Native Expo):**
-   - Aplicação nativa com Expo Router e tema de alto contraste em Português do Brasil.
-   - Ícones de alta resolução 1024x1024 substituindo placeholders (`icon.png`, `adaptive-icon.png`, `splash-icon.png`).
-   - Banco de dados local `expo-sqlite` com repositórios desacoplados (`GameRepository`, `PlaythroughRepository`, `SessionRepository`, `ChecklistRepository`, `DeviceRepository`).
-   - Tela **Biblioteca:** Filtros por status (Backlog, Jogando, Pausado, Zerado, 100%, Abandonado), busca e alternância Lista/Grade.
-   - Tela **Continuar Jogando:** Destaque da campanha em andamento, capítulo atual, próximo objetivo imediato, "Nota para o Meu Eu do Futuro" e cronômetro de sessão persistente baseado em timestamp com proteção contra esquecimento (&gt;12h).
-   - Tela **Descobrir:** Recomendações inteligentes divididas por tempo de sessão (&lt;30m, 1h-2h, &gt;2h) e busca de catálogo com inclusão em 1 clique.
-   - Tela **Assistente Gamer:** Interface de chat interativa com seleção de nível de dica (Leve, Detalhada, Solução Completa), captura de foto pela câmera, seleção de screenshots na galeria e links para guias externos.
-   - Tela **Ajustes:** Estatísticas detalhadas de tempo jogado e títulos zerados, exportação de backup JSON e planilha CSV com compartilhamento no Android, cadastro de dispositivos de hardware e modal de sincronização da Steam e RetroAchievements (`/modal/sync-integrations`).
-   - Modais: Cadastro manual de jogos, registro manual de tempo, configuração de aparelhos e sincronização de contas externas.
-   - Configuração de build nativa para `targetSdkVersion: 36` (Android 16) em `expo-build-properties`.
-   - Perfis de compilação no `eas.json` para Preview APK (`com.savestate.app.preview`) e Production AAB (`com.savestate.app`).
-
-4. **Automações e CI/CD (`.github/workflows`):**
-   - `ci.yml`: Validação automática de typecheck, suíte completa de testes, migrações locais do Cloudflare D1, Expo Doctor e exportação Android a cada push ou PR.
-   - `build-android.yml`: Workflow para compilar Preview APK e Production AAB via runner Ubuntu com Android SDK e Java 17.
-   - `deploy-api.yml`: Deploy automatizado para staging em pushes para `master` ou `staging`, quando há mudanças em `apps/api` ou `packages/shared`.
-
-5. **Documentação Completa:**
-   - `README.md`, `AGENTS.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/DEPLOYMENT.md`, `docs/PLAY_STORE.md`, `docs/AI_ASSISTANT.md`.
-
----
-
-## 🚀 3. Comandos Essenciais para Continuidade
+From the repository root:
 
 ```bash
-# Navegar até o projeto
-cd savestate
-
-# Executar todos os testes
-pnpm test
-
-# Validação estrita de tipos TypeScript
+pnpm install --frozen-lockfile
+pnpm --filter @savestate/shared build
 pnpm -r typecheck
-
-# Iniciar backend local
-pnpm api:dev
-
-# Iniciar app mobile Expo
-pnpm mobile:start
-
-# Exportar bundle Hermes Android
-cd apps/mobile && npx expo export --platform android
+pnpm test
+(cd apps/api && npx wrangler d1 migrations apply savestate-db --local)
+(cd apps/mobile && npx expo-doctor)
+(cd apps/mobile && npx expo export --platform android)
 ```
 
----
-
-## ⚠️ 4. Estado das Ferramentas Locais & Bloqueios
-
-- **Ambiente Local (Windows Host):** O ambiente do host não possui Java SDK 17+ nem Android SDK (`adb`, `gradle` ausentes no PATH). Por isso, builds nativas locais standalone (`gradlew assembleRelease`) dependem do GitHub Actions ou da instalação do Android Studio.
-- **EAS CLI:** O comando `eas build` requer autenticação do desenvolvedor (`eas login`).
-- **Repositório Git Remoto:** O projeto já está no GitHub. O branch de correções deste handoff ainda precisa ser integrado e os workflows precisam ser executados novamente.
-- **Chaves externas:** RAWG habilita a busca online do catálogo; `GEMINI_API_KEY` habilita respostas de IA. Sem essas chaves, os recursos correspondentes usam seus estados de indisponibilidade/fallback documentados.
-
----
-
-## 🎯 5. Ações Pendentes para Publicação na Google Play (Ações do Proprietário)
-
-1. **Conta de Desenvolvedor Google Play:** Efetuar o pagamento da taxa única de \$25 da Google Play Console.
-2. **Validar as correções:** Integrar o branch de correções após revisão e confirmar CI, build Android e deploy de staging. Nenhuma publicação de produção deve ser inferida desses checks.
-3. **Chave de Assinatura (Upload Keystore):** Gerar ou vincular o Keystore de upload no Google Play App Signing via `eas credentials` ou gerá-lo via Android Studio.
-4. **Imagens Promocionais:** Capturar screenshots do aplicativo em resolução mínima de 1080x1920 e criar o banner promocional (1024x500).
-5. **Hospedar Política de Privacidade:** Publicar o texto de privacidade disponibilizado em `docs/PLAY_STORE.md` em um domínio público (ex: GitHub Pages ou Cloudflare Pages).
-6. **Configurar Segredos no Cloudflare:**
-   - `cd apps/api && npx wrangler secret put GEMINI_API_KEY`
-   - `cd apps/api && npx wrangler secret put RAWG_API_KEY`
-
+Manual Android QA must cover launching search from the Library while the keyboard is open, repeated searches for the same and different titles, slow/offline requests, provider errors, empty results, result covers, adding a title, and manual creation. No device UI test has been run in this pass.

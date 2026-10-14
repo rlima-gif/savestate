@@ -28,8 +28,9 @@ graph TD
     subgraph "Backend Serverless (apps/api)"
         Hono[Cloudflare Worker<br/>Hono API Router]
         D1[(Cloudflare D1<br/>Rate Limits & Cache)]
-        GeminiClient[Gemini Vision/Text Client]
-        CatalogClient[RAWG Adapter + D1 Cache]
+        GeminiClient[Optional Gemini Vision/Text Client]
+        KiloClient[Mobile Kilo Gateway Client]
+        CatalogClient[IGDB Adapter + D1 Cache + Shared Rate Limit]
         Hono --> D1
         Hono --> GeminiClient
         Hono --> CatalogClient
@@ -37,13 +38,16 @@ graph TD
 
     subgraph "Serviços Externos"
         GoogleAI[Google Gemini API<br/>gemini-2.5-flash]
-        RAWGAPI[RAWG Video Games Database]
+        KiloGateway[Kilo AI Gateway<br/>Configured free model route]
+        IGDBAPI[IGDB via Twitch OAuth]
         Community[YouTube / GameFAQs / Steam Guides]
     end
 
     UI -->|HTTP / REST| Hono
     GeminiClient --> GoogleAI
-    CatalogClient --> RAWGAPI
+    UI --> KiloClient
+    KiloClient -->|HTTPS, optional AI request| KiloGateway
+    CatalogClient --> IGDBAPI
     UI -->|Links Externos| Community
 ```
 
@@ -87,4 +91,5 @@ Caso o tempo calculado exceda 12 horas, o app alerta o usuário sobre um possív
 
 - **Sem Proxy Irrestrito:** A rota `POST /api/assistant/chat` valida rigorosamente o payload com Zod, limita o tamanho da imagem a 4MB e aplica rate limiting por IP de cliente.
 - **Proteção contra Injeção de Prompt:** O texto presente em imagens é instruído pelo prompt do sistema a ser tratado como dado não confiável.
-- **Resiliência a Falhas e Cotas:** Em caso de erro HTTP 429 (cota do Gemini excedida) ou falta de internet, o app degrada graciosamente e entrega links pré-construídos para detonados no YouTube, GameFAQs e guias comunitários da Steam.
+- **Assistente:** o app usa o gateway Kilo por padrão; o endpoint Cloudflare/Gemini continua como rota alternativa explicitamente selecionada. Falhas não trocam automaticamente de provedor para evitar custos ou encaminhamento inesperado de imagens.
+- **Resiliência do catálogo:** cache D1 e resultados obsoletos ficam disponíveis quando o provedor falha; sem resultados salvos, o app mostra erro recuperável e permite cadastro manual.

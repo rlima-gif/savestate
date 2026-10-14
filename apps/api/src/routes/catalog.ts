@@ -30,7 +30,8 @@ catalogRouter.get('/catalog/search', async (c) => {
     rawQ,
     page,
     pageSize,
-    c.env.RAWG_API_KEY,
+    c.env.TWITCH_CLIENT_ID,
+    c.env.TWITCH_CLIENT_SECRET,
     allowMock
   );
 
@@ -46,7 +47,13 @@ catalogRouter.get('/catalog/games/:id', async (c) => {
   const isDevOrTest = c.env.ENVIRONMENT === 'development' || c.env.ENVIRONMENT === 'test';
   const allowMock = isDevOrTest && (c.req.query('mock') === 'true' || c.env.ENVIRONMENT === 'test');
 
-  const details = await getGameDetails(c.env.DB, id, c.env.RAWG_API_KEY, allowMock);
+  const details = await getGameDetails(
+    c.env.DB,
+    id,
+    c.env.TWITCH_CLIENT_ID,
+    c.env.TWITCH_CLIENT_SECRET,
+    allowMock
+  );
 
   if (!details) {
     return c.json({ error: 'Jogo não encontrado no catálogo' }, 404);

@@ -15,10 +15,10 @@ Este documento contém todas as instruções e convenções de engenharia necess
 
 2. **`apps/api`**:
    - Cloudflare Workers com Hono v4 (`wrangler.jsonc`).
-   - `src/services/catalog.ts`: Adaptador RAWG com cache D1; respostas mock só podem ser habilitadas explicitamente em desenvolvimento/testes.
+   - `src/services/catalog.ts` e `src/services/igdb.ts`: IGDB/Twitch OAuth server-to-server, cache D1 e limitador global; mocks apenas em desenvolvimento/testes.
    - `src/services/gemini.ts`: Conexão com a API do Google Gemini (`gemini-2.5-flash`) com tratamento de cota excedida (HTTP 429) e links de guias externos.
    - `src/services/rate-limit.ts`: Controle de abuso e limites diários por IP com Cloudflare D1; falha de forma segura em produção se o D1 não estiver disponível.
-   - `migrations/0001_init.sql`: Migrações D1 para `rate_limits`, `catalog_cache` e `sync_checkpoints`.
+   - `migrations/`: D1 para `rate_limits`, `catalog_cache`, `sync_checkpoints` e limite global de chamadas IGDB.
 
 3. **`apps/mobile`**:
    - React Native com Expo SDK 52 e Expo Router (`src/app/`).
@@ -69,7 +69,7 @@ Todos os comandos devem ser executados a partir da raiz do monorepo:
 ## 🔑 Credenciais e Variáveis de Ambiente
 
 - **`GEMINI_API_KEY`**: Chave da API do Google Gemini (configurada como segredo no Cloudflare Workers via `wrangler secret put GEMINI_API_KEY`). **O aplicativo funciona normalmente sem a chave**, ativando o modo de demonstração com links para guias da comunidade.
-- **`RAWG_API_KEY`**: Credencial do provedor RAWG no backend para busca online. Quando ausente, a API informa que o catálogo está indisponível e o app mantém cadastro manual offline; não invente resultados de catálogo.
+- **`TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET`**: credenciais privadas do proprietário para IGDB, apenas no Worker. Usuários finais não precisam de contas ou chaves. Distribuição comercial depende de confirmar parceria/atribuição e direitos de imagem com a IGDB.
 - **`EXPO_PUBLIC_API_URL`**: URL pública do worker Cloudflare. Emulador Android aponta para `http://10.0.2.2:8787`. Em staging/produção, aponta para `https://savestate-api-staging.safeloot.workers.dev`.
 
 ---

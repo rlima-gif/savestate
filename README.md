@@ -1,7 +1,7 @@
 # SaveState — Backlog & Assistente Gamer
 
 > **O aplicativo definitivo de backlog e assistente inteligente para jogadores.**  
-> Aplicativo nativo Android desenvolvido com React Native (Expo SDK 52, Android API 36 / Android 16), persistência local offline-first com SQLite, e assistente com IA multimodal (texto e visão) potencializado pela API Google Gemini e Cloudflare Workers.
+> Aplicativo Android desenvolvido com React Native (Expo SDK 52, Android API 36 / Android 16), persistência local offline-first com SQLite, catálogo IGDB pelo backend Cloudflare e assistente gamer multimodal via gateway configurável.
 
 ---
 
@@ -20,7 +20,7 @@
   - **Cronômetro de Sessão Resiliente:** calcula o tempo decorrido com base em carimbo de data/hora (timestamp) no SQLite, sobrevivendo ao fechamento do aplicativo e reinicialização do celular sem gastar bateria com serviços contínuos em segundo plano.
   - Proteção contra cronômetros esquecidos rodando por mais de 12 horas.
 
-- **Assistente Gamer Especializado (Google Gemini):**
+- **Assistente Gamer Especializado (gateway Kilo por padrão):**
   - Suporte a perguntas em texto, fotos capturadas na hora pela câmera ou capturas de tela (screenshots) da galeria.
   - Recorte (crop), compressão e remoção automática de metadados antes do envio.
   - **Progressão de Dicas:**
@@ -49,14 +49,14 @@
 
 ## 🔑 O Que Funciona Com e Sem Chaves de API
 
-| Recurso | Sem Chaves de API | Com Chave de API Configurada no Servidor |
+| Recurso | Offline / serviço externo indisponível | Com provedor online configurado |
 |---|---|---|
 | **Biblioteca & Backlog** | ✅ Funcionalidade completa (100% offline via SQLite local) | ✅ Funcionalidade completa |
 | **Checklists & Sessões** | ✅ Funcionalidade completa (100% offline via SQLite local) | ✅ Funcionalidade completa |
 | **Cadastro de Jogos** | ✅ Cadastro manual completo com capas, plataformas e gêneros | ✅ Cadastro manual ou busca no catálogo |
 | **Backups JSON / CSV** | ✅ Exportação e importação local completas | ✅ Exportação e importação local completas |
-| **Busca Online de Catálogo** | ℹ️ Retorna mensagem informativa com opção de cadastro manual direto | ✅ Busca completa online via RAWG API |
-| **Assistente Gamer (IA)** | ℹ️ Exibe links de detonados (GameFAQs, Steam Guides, YouTube) | ✅ Inferência multimodal ao vivo (texto e visão) via Gemini |
+| **Busca Online de Catálogo** | ℹ️ Busca remota pode ficar indisponível; cadastro manual segue disponível | ✅ Busca via IGDB quando o proprietário configura as credenciais privadas do Worker |
+| **Assistente Gamer (IA)** | ℹ️ Exibe links de detonados (GameFAQs, Steam Guides, YouTube) | ✅ Inferência multimodal pelo gateway configurado; Gemini via Worker é uma rota alternativa |
 | **Importação Steam** | ✅ Funciona sem chave (perfis públicos via SteamID64 ou Vanity ID) | ✅ Funciona sem chave |
 | **RetroAchievements** | ℹ️ Requer sua Web API Key pessoal durante a sincronização | ✅ Pré-visualiza e importa jogos concluídos; vincula títulos existentes sem substituir notas/status |
 
@@ -69,9 +69,9 @@
 | **App Mobile** | React Native, Expo SDK 52, Expo Router | TypeScript estrito, Target SDK 36 (Android 16) |
 | **Banco Local** | Expo SQLite (`expo-sqlite`) | Offline-first, chaves estrangeiras, migrações versionadas (`PRAGMA user_version`) |
 | **Backend API** | Cloudflare Workers com Hono v4 | Execução serverless global com latência ultrabaixa |
-| **Banco Cloud** | Cloudflare D1 (SQLite) | Rate limiting atômico, proteção contra abusos e cache de catálogo (TTL 24h) |
-| **Motor de IA** | Google Gemini (`gemini-2.5-flash`) | Visão e texto; a chave do operador fica exclusivamente no servidor |
-| **Catálogo** | Adaptador RAWG Video Games Database | Busca normalizada com cache D1 e fallback informativo |
+| **Banco Cloud** | Cloudflare D1 (SQLite) | Rate limiting atômico, cache de catálogo e limite compartilhado do provedor |
+| **Motor de IA** | Gateway Kilo (padrão no app); Gemini via Cloudflare Worker (alternativa) | Texto e visão; credenciais de servidor nunca são empacotadas no APK |
+| **Catálogo** | IGDB via Twitch OAuth (backend) | Busca multiplataforma, cache D1 e fallback manual offline; nenhum segredo no APK |
 | **CI/CD** | GitHub Actions | Typecheck, testes, Expo export, APK Preview e AAB de Produção |
 
 ---
@@ -81,7 +81,7 @@
 ```
 savestate/
 ├── apps/
-│   ├── api/             # Cloudflare Workers (Hono, D1, Gemini & Catalog Service)
+│   ├── api/             # Cloudflare Workers (Hono, D1, Gemini alternativo & IGDB Catalog)
 │   └── mobile/          # React Native Expo Android App (Telas, SQLite, Timer, Câmera)
 ├── packages/
 │   └── shared/          # Modelos de domínio, Schemas Zod, Motor de Recomendações, Backups
@@ -151,9 +151,9 @@ npx expo export --platform android
 
 ## 🔒 Atribuição de Provedores e Licença
 
-- **RAWG:** Dados de jogos fornecidos pela [RAWG Video Games Database API](https://rawg.io).
+- **IGDB:** Metadados fornecidos pela [IGDB](https://www.igdb.com/), com atribuição visível. Uso comercial requer confirmar parceria e direitos de mídia antes da publicação.
 - **Steam:** Dados de biblioteca importados da Comunidade Steam sob os termos da Valve Corporation.
 - **RetroAchievements:** Registros de jogos completados providos pela API oficial do [RetroAchievements.org](https://retroachievements.org).
-- **Google Gemini:** Inteligência artificial multimodal provida pela Google Cloud / Google AI Studio.
+- **IA:** o gateway e o provedor/modelo efetivamente usados devem ser informados na política de privacidade e na ficha da Play Store antes do lançamento. A rota Cloudflare/Gemini é opcional.
 - **Política de Privacidade:** Consulte o rascunho completo em [`docs/PRIVACY_POLICY.md`](./docs/PRIVACY_POLICY.md).
 - **Licença do Repositório:** Decisão pendente de definição pelo proprietário do projeto.

@@ -10,9 +10,9 @@ describe('ApiService Catalog & Search Regressions', () => {
     const mockResponse = {
       results: [
         {
-          id: 'rawg-1',
+          id: 'igdb-1',
           providerId: 1,
-          provider: 'rawg',
+          provider: 'igdb',
           title: 'The Legend of Zelda',
           platforms: ['Switch'],
           genres: ['Adventure'],
@@ -22,8 +22,8 @@ describe('ApiService Catalog & Search Regressions', () => {
       page: 1,
       pageSize: 20,
       hasMore: false,
-      provider: 'rawg',
-      attribution: 'RAWG',
+      provider: 'igdb',
+      attribution: 'IGDB',
     };
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -49,8 +49,8 @@ describe('ApiService Catalog & Search Regressions', () => {
         page: 1,
         pageSize: 20,
         hasMore: false,
-        provider: 'rawg',
-        attribution: 'RAWG',
+        provider: 'igdb',
+        attribution: 'IGDB',
       }),
     } as any);
 
@@ -59,7 +59,7 @@ describe('ApiService Catalog & Search Regressions', () => {
     expect(result.total).toBe(0);
   });
 
-  it('handles unavailable catalog response (no RAWG key) gracefully', async () => {
+  it('handles unavailable catalog response gracefully', async () => {
     const mockUnavailableResponse = {
       results: [],
       total: 0,
@@ -69,7 +69,7 @@ describe('ApiService Catalog & Search Regressions', () => {
       provider: 'unavailable',
       isLive: false,
       message: 'Catálogo online indisponível.',
-      attribution: 'RAWG não configurada',
+      attribution: 'IGDB',
     };
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -97,7 +97,28 @@ describe('ApiService Catalog & Search Regressions', () => {
       },
     } as any);
 
-    await expect(ApiService.searchCatalog('Elden Ring')).rejects.toThrow('Unexpected token in JSON');
+    await expect(ApiService.searchCatalog('Elden Ring')).rejects.toThrow('Resposta inválida do catálogo');
+  });
+
+  it('does not make a network request for an empty search', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const result = await ApiService.searchCatalog('   ');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.provider).toBe('unavailable');
+    expect(result.message).toContain('Digite');
+  });
+
+  it('filters malformed rows before they reach the results list', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        results: [{ id: 'igdb-1', title: 'Game' }, { id: null, title: 'Bad row' }, null],
+        total: 3, page: 1, pageSize: 20, hasMore: false, provider: 'igdb', attribution: 'IGDB',
+      }),
+    } as any);
+    const result = await ApiService.searchCatalog('Game');
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].title).toBe('Game');
   });
 
   it('supports retry on subsequent attempt after a transient failure', async () => {
@@ -106,7 +127,7 @@ describe('ApiService Catalog & Search Regressions', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          results: [{ id: 'rawg-1', title: 'Halo', provider: 'rawg' }],
+          results: [{ id: 'igdb-1', title: 'Halo', provider: 'igdb' }],
           total: 1,
           page: 1,
           pageSize: 20,
@@ -125,14 +146,14 @@ describe('ApiService Catalog & Search Regressions', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        id: 'rawg-123',
-        provider: 'rawg',
+        id: 'igdb-123',
+        provider: 'igdb',
         title: 'Dark Souls',
         description: 'Prepare to Die',
       }),
     } as any);
 
-    const details = await ApiService.getGameDetails('rawg-123');
+    const details = await ApiService.getGameDetails('igdb-123');
     expect(details?.title).toBe('Dark Souls');
     expect(details?.description).toBe('Prepare to Die');
   });
