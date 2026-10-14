@@ -20,7 +20,9 @@
       },
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev"
+        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev",
+        "EXPO_PUBLIC_KILO_ASSISTANT_ENABLED": "true",
+        "EXPO_PUBLIC_KILO_MODEL": "openrouter/free"
       }
     },
     "production": {
@@ -29,7 +31,9 @@
         "applicationId": "com.savestate.app"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev"
+        "EXPO_PUBLIC_API_URL": "https://savestate-api-staging.safeloot.workers.dev",
+        "EXPO_PUBLIC_KILO_ASSISTANT_ENABLED": "true",
+        "EXPO_PUBLIC_KILO_MODEL": "openrouter/free"
       }
     }
   },

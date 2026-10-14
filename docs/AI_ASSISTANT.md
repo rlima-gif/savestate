@@ -6,11 +6,12 @@ Este documento detalha o funcionamento, engenharia de prompt, tratamento de imag
 
 ## 🧠 1. Seleção de Modelos e Provedor
 
-O SaveState utiliza a **API oficial do Google Gemini** orquestrada através do Cloudflare Workers:
+O app usa como experimento o endpoint anônimo da **Kilo AI Gateway**, sem chave no APK nem login do jogador:
 
-- **Modelo Padrão:** `gemini-3.5-flash-lite` (Recomendado na documentação oficial de 2026 para tarefas agenticas de alto volume, suporte nativo multimodal a texto e imagem, elegível para cota gratuita e com tempo de resposta sub-segundo).
-- **Modelo Alternativo:** `gemini-3.8-flash` (Para raciocínio complexo e quebra-cabeças avançados de múltiplos passos).
-- **Configuração:** O modelo é configurável via variável de ambiente `GEMINI_MODEL` no Cloudflare Workers sem necessidade de recompilar o aplicativo mobile.
+- **Modelo inicial:** `openrouter/free`, roteador gratuito com suporte atual a texto e imagem. O catálogo e os provedores podem mudar; nenhum modelo grátis é garantido permanentemente.
+- **Chamada:** feita diretamente pelo Android para não concentrar todos os jogadores no mesmo IP de saída do Cloudflare Worker. O app não envia `Authorization` nem segredo.
+- **Alternativa:** defina `EXPO_PUBLIC_KILO_ASSISTANT_ENABLED=false` no build para voltar ao endpoint existente do Worker. Esse caminho usa Gemini e depende da configuração `GEMINI_API_KEY` no Cloudflare; não é um fallback automático para evitar custo surpresa.
+- **Modelo selecionado:** `EXPO_PUBLIC_KILO_MODEL` troca o ID usado pelo gateway. Para o fluxo sem credencial, mantenha-o em um modelo gratuito.
 
 ---
 
@@ -20,17 +21,15 @@ O SaveState utiliza a **API oficial do Google Gemini** orquestrada através do C
 sequenceDiagram
     participant User as Jogador (Android)
     participant Picker as ImagePicker Service
-    participant Worker as Cloudflare Worker
-    participant Gemini as Google Gemini API
+    participant Kilo as Kilo AI Gateway
+    participant Model as Free multimodal model router
 
     User->>Picker: Tira Foto da TV ou Escolhe Screenshot
     Picker->>Picker: Recorta (Crop), comprime (70%) e remove metadados EXIF
-    User->>Worker: Envia Pergunta + Imagem Base64 + Contexto do Jogo
-    Worker->>Worker: Valida tamanho (<4MB) e checa limite de requisições (Rate Limit)
-    Worker->>Worker: Injeta System Instructions gamer (PT-BR) com regras anti-spoiler
-    Worker->>Gemini: POST generateContent (texto + imagem inline)
-    Gemini-->>Worker: Retorna resposta em Português do Brasil
-    Worker-->>User: Retorna Dica no nível solicitado + Links de detonados
+    User->>Kilo: Envia pergunta + contexto + imagem opcional
+    Kilo->>Model: Roteia a chamada gratuita
+    Model-->>Kilo: Resposta de texto
+    Kilo-->>User: Retorna a resposta; o app ignora campos de raciocínio interno
 ```
 
 ---
@@ -49,19 +48,17 @@ O assistente adota o conceito de **Progressão Escalonada de Dicas**:
 
 ---
 
-## 💰 4. Matriz de Custos e Cotas
+## 💰 4. Custos, limites e privacidade
 
-| Componente | Nível Gratuito / Custo Base | Comportamento em Caso de Escala |
-|---|---|---|
-| **Google Gemini API** | Cota gratuita padrão (RPM / RPD) no AI Studio | `gemini-3.5-flash-lite`: \$0.10 por 1M tokens de entrada (texto/imagem), \$0.40 por 1M tokens de saída. |
-| **Cloudflare Workers** | 100.000 requisições/dia gratuitas | \$5/mês no plano Workers Paid para 10M requisições/mês. |
-| **Cloudflare D1** | 5M leituras e 100k escritas/dia gratuitas | Extremamente barato mesmo em grande escala. |
-| **RAWG API** | 20.000 requisições/mês gratuitas | Utiliza cache no D1 e catálogo offline para evitar exceder. |
+O endpoint anônimo da Kilo aceita modelos gratuitos e documenta limite de 200 chamadas por hora por IP. Provedores/modelos individuais podem impor limites menores; testes já encontraram respostas 429 mesmo antes desse teto. A capacidade e a lista de modelos podem mudar sem aviso. Por isso, esta integração serve para validar o produto e não é uma garantia de serviço grátis para muitos usuários. Chamadas diretas reduzem o compartilhamento do IP do Worker, mas jogadores em redes móveis ou Wi-Fi compartilhado ainda podem dividir IP.
+
+O app mostra um aviso de que mensagens e imagens são enviadas à Kilo e ao modelo escolhido pelo roteador. Não envie dados pessoais ou conteúdo privado nas imagens. O provedor roteado recebe os dados necessários para gerar a resposta. A cota grátis esgotada produz uma mensagem recuperável; o app não tenta o Gemini automaticamente. Para operar com volume e disponibilidade previsível, será preciso contratar capacidade, hospedar modelo próprio ou adicionar uma cota controlada por usuário autenticado.
 
 ---
 
 ## 🛡️ 5. Defesas contra Abuso e Falhas
 
 - **Proteção contra Injeção de Prompt (Prompt Injection):** Instruções maliciosas embutidas em capturas de tela (como textos forjados de menu dizendo *"ignore as instruções anteriores"*) são neutralizadas pela instrução de sistema que trata o texto em imagens como conteúdo não confiável.
-- **Rate Limiting Baseado em IP:** O Cloudflare D1 mantém contadores diários por endereço IP. Cada usuário anônimo pode realizar até 30 consultas com IA por dia por padrão (configurável via `AI_DAILY_RATE_LIMIT`).
-- **Degradação Graciosa:** Caso a cota do Gemini seja atingida (HTTP 429), a API retorna automaticamente HTTP 200 com flag `quotaExhausted: true` e entrega links diretos para detonados no YouTube, GameFAQs, guias da Steam e wikis do jogo sem quebrar a experiência do usuário.
+- **Rate limiting no modo atual:** o gateway Kilo aplica limite anônimo por IP, e o provedor roteado pode limitar ainda mais. O app não tenta repetir chamadas automaticamente.
+- **Alternativa Cloudflare:** se `EXPO_PUBLIC_KILO_ASSISTANT_ENABLED=false`, o Worker aplica seu limite diário no D1 (`AI_DAILY_RATE_LIMIT`) e, ao esgotar a cota, retorna links de guias externos.
+- **Degradação no modo Kilo:** falhas e HTTP 429 viram uma mensagem legível com link de busca no YouTube; não há fallback silencioso para o Gemini.

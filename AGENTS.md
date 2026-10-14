@@ -15,9 +15,9 @@ Este documento contém todas as instruções e convenções de engenharia necess
 
 2. **`apps/api`**:
    - Cloudflare Workers com Hono v4 (`wrangler.jsonc`).
-   - `src/services/catalog.ts`: Adaptador de catálogo (RAWG / IGDB) com dados de mock estáticos para desenvolvimento offline e CI.
-   - `src/services/gemini.ts`: Conexão com a API do Google Gemini (`gemini-3.5-flash-lite` / `gemini-3.8-flash`) com tratamento de cota excedida (HTTP 429) e geração de links de guias externos.
-   - `src/services/rate-limit.ts`: Controle de abuso e rate limiting diário baseado em IP com suporte a Cloudflare D1 e fallback em memória.
+   - `src/services/catalog.ts`: Adaptador RAWG com cache D1; respostas mock só podem ser habilitadas explicitamente em desenvolvimento/testes.
+   - `src/services/gemini.ts`: Conexão com a API do Google Gemini (`gemini-2.5-flash`) com tratamento de cota excedida (HTTP 429) e links de guias externos.
+   - `src/services/rate-limit.ts`: Controle de abuso e limites diários por IP com Cloudflare D1; falha de forma segura em produção se o D1 não estiver disponível.
    - `migrations/0001_init.sql`: Migrações D1 para `rate_limits`, `catalog_cache` e `sync_checkpoints`.
 
 3. **`apps/mobile`**:
@@ -69,7 +69,7 @@ Todos os comandos devem ser executados a partir da raiz do monorepo:
 ## 🔑 Credenciais e Variáveis de Ambiente
 
 - **`GEMINI_API_KEY`**: Chave da API do Google Gemini (configurada como segredo no Cloudflare Workers via `wrangler secret put GEMINI_API_KEY`). **O aplicativo funciona normalmente sem a chave**, ativando o modo de demonstração com links para guias da comunidade.
-- **`RAWG_API_KEY`**: Chave pública/gratuita da API RAWG para busca online de catálogo. Quando ausente, o serviço utiliza o catálogo local embutido de alta fidelidade sem quebrar as requisições.
+- **`RAWG_API_KEY`**: Credencial do provedor RAWG no backend para busca online. Quando ausente, a API informa que o catálogo está indisponível e o app mantém cadastro manual offline; não invente resultados de catálogo.
 - **`EXPO_PUBLIC_API_URL`**: URL pública do worker Cloudflare. Emulador Android aponta para `http://10.0.2.2:8787`. Em staging/produção, aponta para `https://savestate-api-staging.safeloot.workers.dev`.
 
 ---

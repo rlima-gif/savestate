@@ -29,14 +29,14 @@ graph TD
         Hono[Cloudflare Worker<br/>Hono API Router]
         D1[(Cloudflare D1<br/>Rate Limits & Cache)]
         GeminiClient[Gemini Vision/Text Client]
-        CatalogClient[RAWG / IGDB Adapter]
+        CatalogClient[RAWG Adapter + D1 Cache]
         Hono --> D1
         Hono --> GeminiClient
         Hono --> CatalogClient
     end
 
     subgraph "Serviços Externos"
-        GoogleAI[Google Gemini API<br/>gemini-3.5-flash-lite]
+        GoogleAI[Google Gemini API<br/>gemini-2.5-flash]
         RAWGAPI[RAWG Video Games Database]
         Community[YouTube / GameFAQs / Steam Guides]
     end

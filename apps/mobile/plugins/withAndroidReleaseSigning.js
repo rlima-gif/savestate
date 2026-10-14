@@ -29,7 +29,7 @@ module.exports = function withAndroidReleaseSigning(config) {
       // Point release buildType signingConfig to release if RELEASE_STORE_FILE is provided, otherwise fallback to debug
       config.modResults.contents = config.modResults.contents.replace(
         /(buildTypes\s*\{[\s\S]*?\n\s*release\s*\{[\s\S]*?)(signingConfig\s+signingConfigs\.debug)/,
-        `$1signingConfig (System.getenv('RELEASE_STORE_FILE') != null) ? signingConfigs.release : signingConfigs.debug`
+        `$1signingConfig = (System.getenv('RELEASE_STORE_FILE') != null) ? signingConfigs.release : signingConfigs.debug`
       );
     }
     return config;

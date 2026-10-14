@@ -58,7 +58,7 @@
 | **Busca Online de Catálogo** | ℹ️ Retorna mensagem informativa com opção de cadastro manual direto | ✅ Busca completa online via RAWG API |
 | **Assistente Gamer (IA)** | ℹ️ Exibe links de detonados (GameFAQs, Steam Guides, YouTube) | ✅ Inferência multimodal ao vivo (texto e visão) via Gemini |
 | **Importação Steam** | ✅ Funciona sem chave (perfis públicos via SteamID64 ou Vanity ID) | ✅ Funciona sem chave |
-| **RetroAchievements** | ℹ️ Requer Web API Key pessoal do usuário (gratuita no site oficial) | ✅ Importa jogos completados (100% de conquistas) |
+| **RetroAchievements** | ℹ️ Requer sua Web API Key pessoal durante a sincronização | ✅ Pré-visualiza e importa jogos concluídos; vincula títulos existentes sem substituir notas/status |
 
 ---
 
@@ -70,9 +70,9 @@
 | **Banco Local** | Expo SQLite (`expo-sqlite`) | Offline-first, chaves estrangeiras, migrações versionadas (`PRAGMA user_version`) |
 | **Backend API** | Cloudflare Workers com Hono v4 | Execução serverless global com latência ultrabaixa |
 | **Banco Cloud** | Cloudflare D1 (SQLite) | Rate limiting atômico, proteção contra abusos e cache de catálogo (TTL 24h) |
-| **Motor de IA** | Google Gemini (`gemini-2.5-flash` / `gemini-3.5-flash-lite`) | Visão e texto, chave protegida exclusivamente no servidor |
+| **Motor de IA** | Google Gemini (`gemini-2.5-flash`) | Visão e texto; a chave do operador fica exclusivamente no servidor |
 | **Catálogo** | Adaptador RAWG Video Games Database | Busca normalizada com cache D1 e fallback informativo |
-| **CI/CD** | GitHub Actions | Lint, Typecheck, Testes, Build de APK Preview e AAB de Produção |
+| **CI/CD** | GitHub Actions | Typecheck, testes, Expo export, APK Preview e AAB de Produção |
 
 ---
 
@@ -86,7 +86,7 @@ savestate/
 ├── packages/
 │   └── shared/          # Modelos de domínio, Schemas Zod, Motor de Recomendações, Backups
 ├── docs/                # Documentação técnica de arquitetura, testes, publicação e IA
-├── .github/workflows/   # CI (Lint, Test, Typecheck) e Build Android (APK & AAB)
+├── .github/workflows/   # CI (Test, Typecheck, Export) e Build Android (APK & AAB)
 └── package.json         # Workspace pnpm
 ```
 

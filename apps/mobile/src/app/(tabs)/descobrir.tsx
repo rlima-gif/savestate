@@ -28,7 +28,7 @@ import { colors } from '../../theme/colors';
 export default function DescobrirScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ q?: string; tab?: string }>();
+  const params = useLocalSearchParams<{ q?: string | string[]; tab?: string | string[] }>();
 
   const [activeTab, setActiveTab] = useState<'recommendations' | 'catalog'>('recommendations');
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,15 +66,21 @@ export default function DescobrirScreen() {
     }
   }, [sessionSuitability]);
 
-  // Handle incoming query params (e.g. redirected from Library search)
-  const initialSearchDone = useRef(false);
+  // Handle every new query passed from the Library. A one-time ref here caused
+  // subsequent searches to reuse stale state when this tab stayed mounted.
+  const lastRoutedQuery = useRef('');
   useEffect(() => {
-    if (params.q && typeof params.q === 'string' && !initialSearchDone.current) {
-      initialSearchDone.current = true;
-      setSearchQuery(params.q);
+    const routedQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+    const routedTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+    if (routedQuery?.trim() && routedQuery !== lastRoutedQuery.current) {
+      lastRoutedQuery.current = routedQuery;
+      setSearchResults([]);
+      setSearchError(null);
+      setHasSearched(false);
+      setSearchQuery(routedQuery);
       setActiveTab('catalog');
-      executeSearch(params.q);
-    } else if (params.tab === 'catalog') {
+      void executeSearch(routedQuery);
+    } else if (routedTab === 'catalog') {
       setActiveTab('catalog');
     }
   }, [params.q, params.tab]);
@@ -431,6 +437,8 @@ export default function DescobrirScreen() {
               data={searchResults}
               keyExtractor={(item, index) => item.id || `game-${index}`}
               contentContainerStyle={[styles.catalogList, { paddingBottom: bottomPadding }]}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               renderItem={({ item }) => (
                 <View style={styles.catalogCard}>
                   {item.coverUrl ? (

@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AssistantMessage,
   HintTier,
@@ -23,6 +22,7 @@ import {
   Playthrough,
 } from '@savestate/shared';
 import { ApiService } from '../../services/api';
+import { isKiloAssistantEnabled } from '../../services/kilo-assistant';
 import { ImageService, PickedImageResult } from '../../services/image-picker';
 import { GameRepository } from '../../db/repositories/game-repo';
 import { PlaythroughRepository } from '../../db/repositories/playthrough-repo';
@@ -151,7 +151,7 @@ export default function AssistenteScreen() {
           {
             title: `Buscar no YouTube (${activeContext?.game.title || 'Jogo'})`,
             url: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-              (activeContext?.game.title || '') + ' detonado ' + userMsgText
+              (activeContext?.game.title ? `${activeContext.game.title} detonado ` : 'detonado ') + userMsgText
             )}`,
             source: 'youtube',
           },
@@ -233,6 +233,7 @@ export default function AssistenteScreen() {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        keyboardShouldPersistTaps="handled"
       >
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
@@ -327,6 +328,11 @@ export default function AssistenteScreen() {
           <Ionicons name="arrow-up" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
+      <Text style={styles.aiPrivacyNote}>
+        {isKiloAssistantEnabled()
+          ? 'IA grátis experimental: texto e imagens vão à Kilo e ao modelo roteado. Evite dados privados.'
+          : 'Mensagem e imagens são enviadas ao provedor de IA configurado no serviço.'}
+      </Text>
     </KeyboardAvoidingView>
   );
 }
@@ -500,6 +506,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.dark.border,
     gap: 8,
+  },
+  aiPrivacyNote: {
+    color: colors.dark.textMuted,
+    backgroundColor: colors.dark.card,
+    fontSize: 10,
+    lineHeight: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+    textAlign: 'center',
   },
   mediaIconBtn: {
     width: 40,
