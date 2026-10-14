@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +29,7 @@ import { colors } from '../../theme/colors';
 export default function DescobrirScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ q?: string | string[]; tab?: string | string[] }>();
+  const params = useLocalSearchParams<{ q?: string | string[]; tab?: string | string[]; r?: string | string[] }>();
 
   const [activeTab, setActiveTab] = useState<'recommendations' | 'catalog'>('recommendations');
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +37,7 @@ export default function DescobrirScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const searchRequestId = useRef(0);
 
   // Recommendations state
   const [recommendations, setRecommendations] = useState<RecommendationResult[]>([]);
@@ -66,62 +68,64 @@ export default function DescobrirScreen() {
     }
   }, [sessionSuitability]);
 
-  // Handle every new query passed from the Library. A one-time ref here caused
-  // subsequent searches to reuse stale state when this tab stayed mounted.
-  const lastRoutedQuery = useRef('');
-  useEffect(() => {
-    const routedQuery = Array.isArray(params.q) ? params.q[0] : params.q;
-    const routedTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-    if (routedQuery?.trim() && routedQuery !== lastRoutedQuery.current) {
-      lastRoutedQuery.current = routedQuery;
-      setSearchResults([]);
-      setSearchError(null);
-      setHasSearched(false);
-      setSearchQuery(routedQuery);
-      setActiveTab('catalog');
-      void executeSearch(routedQuery);
-    } else if (routedTab === 'catalog') {
-      setActiveTab('catalog');
-    }
-  }, [params.q, params.tab]);
-
   useFocusEffect(
     useCallback(() => {
       loadRecommendations();
     }, [loadRecommendations])
   );
 
-  const executeSearch = async (queryText: string) => {
+  const executeSearch = useCallback(async (queryText: string) => {
     const term = queryText.trim();
-    if (!term) return;
+    const requestId = ++searchRequestId.current;
+    if (!term) {
+      setSearchResults([]);
+      setSearchError('Digite o nome de um jogo para pesquisar.');
+      setHasSearched(false);
+      setIsSearching(false);
+      return;
+    }
 
     Keyboard.dismiss();
     setIsSearching(true);
     setSearchError(null);
     setHasSearched(true);
+    setSearchResults([]);
 
     try {
       const res = await ApiService.searchCatalog(term);
-      setSearchResults(res.results || []);
+      if (requestId !== searchRequestId.current) return;
+      setSearchResults(Array.isArray(res.results) ? res.results : []);
 
-      if (res.provider === 'unavailable') {
-        setSearchError(
-          res.message ||
-            'Catálogo online não configurado no servidor. Você pode cadastrar seus jogos manualmente com dados completos!'
-        );
-      }
-    } catch (err: any) {
+      if (res.message) setSearchError(res.message);
+    } catch {
+      if (requestId !== searchRequestId.current) return;
       setSearchResults([]);
-      setSearchError(
-        err.message || 'Falha ao buscar no catálogo online. Verifique sua conexão com a internet.'
-      );
+      setSearchError('Não foi possível buscar agora. Verifique a conexão e tente novamente.');
     } finally {
-      setIsSearching(false);
+      if (requestId === searchRequestId.current) setIsSearching(false);
     }
-  };
+  }, []);
+
+  // Handle searches routed from the Library, including repeated searches for
+  // the same title while this tab remains mounted.
+  useEffect(() => {
+    const routedQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+    const routedTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+    if (routedTab === 'catalog') setActiveTab('catalog');
+    if (routedQuery?.trim()) {
+      setSearchQuery(routedQuery);
+      setActiveTab('catalog');
+      void executeSearch(routedQuery);
+    }
+  }, [params.q, params.r, params.tab, executeSearch]);
+
+  useEffect(() => () => {
+    // Ignore any request resolving after this screen is unmounted.
+    searchRequestId.current += 1;
+  }, []);
 
   const handleSearchSubmit = () => {
-    executeSearch(searchQuery);
+    void executeSearch(searchQuery);
   };
 
   const handleQuickAdd = async (gameSummary: CatalogGameSummary) => {
@@ -137,6 +141,7 @@ export default function DescobrirScreen() {
       const details = await ApiService.getGameDetails(gameSummary.id).catch(() => null);
 
       const newId = existingId;
+      const catalogProvider = gameSummary.provider === 'igdb' ? 'igdb' : 'manual';
       GameRepository.upsert({
         id: newId,
         title: gameSummary.title,
@@ -145,10 +150,8 @@ export default function DescobrirScreen() {
         platforms: (gameSummary.platforms && gameSummary.platforms.length > 0) ? gameSummary.platforms : ['PC'],
         releaseDate: gameSummary.releaseDate,
         description: details?.description,
-        source: gameSummary.provider as any,
-        externalIds: {
-          [gameSummary.provider]: gameSummary.providerId,
-        },
+        source: catalogProvider,
+        externalIds: gameSummary.provider === 'igdb' ? { igdb: gameSummary.providerId } : {},
         estimatedDurationHours: details?.estimatedDurationHours,
         fetchedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -397,6 +400,14 @@ export default function DescobrirScreen() {
             </TouchableOpacity>
           </View>
 
+          <TouchableOpacity
+            style={styles.catalogAttribution}
+            onPress={() => void Linking.openURL('https://www.igdb.com').catch(() => undefined)}
+            accessibilityRole="link"
+          >
+            <Text style={styles.catalogAttributionText}>Dados do catálogo: IGDB.com</Text>
+          </TouchableOpacity>
+
           {/* Loading State */}
           {isSearching && (
             <View style={styles.stateContainer}>
@@ -411,7 +422,9 @@ export default function DescobrirScreen() {
             <View style={styles.fallbackBox}>
               <View style={styles.fallbackIconRow}>
                 <Ionicons name="cloud-offline-outline" size={28} color={colors.dark.gold} />
-                <Text style={styles.fallbackTitle}>Catálogo Online Indisponível</Text>
+                <Text style={styles.fallbackTitle}>
+                  {searchResults.length > 0 ? 'Resultados salvos' : 'Catálogo Online Indisponível'}
+                </Text>
               </View>
               <Text style={styles.fallbackText}>{searchError}</Text>
               <View style={styles.fallbackActions}>
@@ -426,6 +439,14 @@ export default function DescobrirScreen() {
                       ? `Cadastrar "${searchQuery.trim()}" Manualmente`
                       : 'Cadastrar Jogo Manualmente'}
                   </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.retrySearchBtn}
+                  onPress={() => void executeSearch(searchQuery)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh" size={16} color={colors.dark.accent} />
+                  <Text style={styles.retrySearchText}>Tentar novamente</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -527,6 +548,19 @@ export default function DescobrirScreen() {
   );
 }
 
+export function ErrorBoundary({ error: _error, retry }: { error: Error; retry: () => void }) {
+  return (
+    <View style={[styles.container, styles.errorBoundary]}>
+      <Ionicons name="warning-outline" size={42} color={colors.dark.gold} />
+      <Text style={styles.stateTitle}>Não foi possível abrir a busca</Text>
+      <Text style={styles.stateSub}>Sua biblioteca continua salva. Tente abrir esta tela novamente.</Text>
+      <TouchableOpacity style={styles.primaryActionBtn} onPress={retry}>
+        <Text style={styles.primaryActionBtnText}>Tentar novamente</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -534,6 +568,11 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
+  },
+  errorBoundary: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
   tabToggleRow: {
     flexDirection: 'row',
@@ -736,6 +775,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  catalogAttribution: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 6,
+  },
+  catalogAttributionText: {
+    color: colors.dark.textMuted,
+    fontSize: 11,
+    textDecorationLine: 'underline',
+  },
+  retrySearchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.dark.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  retrySearchText: {
+    color: colors.dark.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   fallbackBox: {
     marginHorizontal: 16,
     marginVertical: 10,
@@ -763,7 +829,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   fallbackActions: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 8,
   },
   catalogList: {

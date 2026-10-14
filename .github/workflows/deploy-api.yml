@@ -35,6 +35,16 @@ jobs:
       - name: Build Shared Package
         run: pnpm --filter @savestate/shared build
 
+      - name: Validate IGDB credentials are configured
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+        run: |
+          if [ -z "$TWITCH_CLIENT_ID" ] || [ -z "$TWITCH_CLIENT_SECRET" ]; then
+            echo "::error::Configure both TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in GitHub Actions secrets before deploying catalog staging."
+            exit 1
+          fi
+
       - name: Apply D1 Staging Migrations
         uses: cloudflare/wrangler-action@v3
         with:
@@ -42,9 +52,22 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'apps/api'
           command: d1 migrations apply savestate-db-staging --remote --env staging
+
+      - name: Configure Worker secrets from GitHub Actions
+        working-directory: apps/api
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+        run: |
+          set -eu
+          printf '%s' "$TWITCH_CLIENT_ID" | pnpm exec wrangler secret put TWITCH_CLIENT_ID --env staging
+          printf '%s' "$TWITCH_CLIENT_SECRET" | pnpm exec wrangler secret put TWITCH_CLIENT_SECRET --env staging
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | pnpm exec wrangler secret put GEMINI_API_KEY --env staging
+          fi
 
       - name: Deploy Staging Worker
         uses: cloudflare/wrangler-action@v3
@@ -54,5 +77,5 @@ jobs:
           workingDirectory: 'apps/api'
           command: deploy --env staging
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

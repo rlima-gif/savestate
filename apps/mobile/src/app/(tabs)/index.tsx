@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,9 +95,10 @@ export default function LibraryScreen() {
   };
 
   const handleSearchOnline = () => {
+    Keyboard.dismiss();
     router.push({
       pathname: '/(tabs)/descobrir',
-      params: { tab: 'catalog', q: search.trim() },
+      params: { tab: 'catalog', q: search.trim(), r: String(Date.now()) },
     });
   };
 

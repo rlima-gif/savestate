@@ -48,6 +48,32 @@ jobs:
             exit 1
           fi
 
+      - name: Validate IGDB credentials are configured
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+        run: |
+          if [ -z "$TWITCH_CLIENT_ID" ] || [ -z "$TWITCH_CLIENT_SECRET" ]; then
+            echo "::error::Configure both TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in GitHub Actions secrets before deploying the catalog."
+            exit 1
+          fi
+
+      - name: Configure Worker secrets from GitHub Actions
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -eu
+          printf '%s' "$TWITCH_CLIENT_ID" | pnpm exec wrangler secret put TWITCH_CLIENT_ID --env production
+          printf '%s' "$TWITCH_CLIENT_SECRET" | pnpm exec wrangler secret put TWITCH_CLIENT_SECRET --env production
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | pnpm exec wrangler secret put GEMINI_API_KEY --env production
+          fi
+
       - name: Apply D1 Production Migrations & Deploy
         uses: cloudflare/wrangler-action@v3
         with:
@@ -58,5 +84,5 @@ jobs:
             wrangler d1 migrations apply savestate-db-production --remote --env production
             wrangler deploy --env production
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -13,7 +13,7 @@ healthRouter.get('/health', (c) => {
     features: {
       aiAssistant: c.env.AI_FEATURE_ENABLED !== 'false',
       geminiConfigured: Boolean(c.env.GEMINI_API_KEY),
-      rawgConfigured: Boolean(c.env.RAWG_API_KEY),
+      igdbConfigured: Boolean(c.env.TWITCH_CLIENT_ID && c.env.TWITCH_CLIENT_SECRET),
       d1Connected: Boolean(c.env.DB),
     },
   });

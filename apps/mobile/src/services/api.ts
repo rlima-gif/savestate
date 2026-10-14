@@ -53,8 +53,15 @@ export const ApiService = {
   },
 
   async searchCatalog(query: string, page = 1, pageSize = 20): Promise<CatalogSearchResponse> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return {
+        results: [], total: 0, page, pageSize, hasMore: false, provider: 'unavailable',
+        isLive: false, message: 'Digite o nome de um jogo para pesquisar.', attribution: 'SaveState',
+      };
+    }
     const url = buildUrl('/api/catalog/search', {
-      q: query,
+      q: normalizedQuery,
       page,
       pageSize,
     });
@@ -67,7 +74,22 @@ export const ApiService = {
       throw new Error(`Erro na busca do catálogo (${response.status})`);
     }
 
-    return response.json();
+    const data: unknown = await response.json().catch(() => null);
+    if (!data || typeof data !== 'object' || !Array.isArray((data as CatalogSearchResponse).results)) {
+      throw new Error('Resposta inválida do catálogo');
+    }
+    const result = data as CatalogSearchResponse;
+    return {
+      ...result,
+      results: result.results.filter(
+        (game) => Boolean(game && typeof game.id === 'string' && typeof game.title === 'string')
+      ),
+      total: Number.isFinite(result.total) ? result.total : result.results.length,
+      page: Number.isFinite(result.page) ? result.page : page,
+      pageSize: Number.isFinite(result.pageSize) ? result.pageSize : pageSize,
+      hasMore: Boolean(result.hasMore),
+      attribution: typeof result.attribution === 'string' ? result.attribution : 'SaveState',
+    };
   },
 
   async getGameDetails(id: string): Promise<CatalogGameDetails> {

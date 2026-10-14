@@ -64,20 +64,19 @@ PRINCIPAIS RECURSOS:
 
 | Pergunta da Play Store | Declaração do SaveState | Detalhes Técnicos |
 |---|---|---|
-| **O app coleta dados do usuário?** | Opcional, apenas quando acionado o assistente de IA. | Fotos/capturas de tela e perguntas de jogos enviadas ativamente pelo usuário. |
-| **Os dados são compartilhados com terceiros?** | Sim, estritamente para o processamento de IA. | O texto da dúvida e a imagem são transmitidos de forma efêmera para o Google Gemini API via Cloudflare Workers. |
-| **Os dados são criptografados em trânsito?** | Sim. | Todas as transmissões usam HTTPS/TLS 1.3. |
-| **Os dados são armazenados permanentemente na nuvem?** | Não. | Imagens e perguntas não são persistidas em bancos de dados remotos após o retorno da resposta da IA. |
-| **O usuário pode solicitar a exclusão de dados?** | Sim. | Todos os dados residem localmente e podem ser apagados pelo app ou desinstalando-o. |
+| **O app coleta dados do usuário?** | O usuário envia conteúdo voluntariamente ao usar o assistente. | Pergunta, contexto do jogo e, opcionalmente, foto/captura de tela. A busca do catálogo também envia o título consultado ao backend. |
+| **Os dados são compartilhados com terceiros?** | Sim, para processar buscas e respostas. | O catálogo recebe consultas via backend SaveState/IGDB. No build atual, o assistente usa o gateway Kilo e o provedor/modelo roteado por ele; a rota Gemini via Worker é alternativa. Confirmar o provedor real e seus termos antes da ficha final. |
+| **Os dados são criptografados em trânsito?** | Sim, via HTTPS. | Declarar protocolos conforme os endpoints e provedores efetivamente usados no release. |
+| **O usuário pode solicitar a exclusão de dados?** | Biblioteca local: sim. Conteúdo enviado: depende do terceiro. | O SaveState não persiste conversas no seu D1; a retenção do gateway e do modelo segue os termos deles. Não declarar exclusão imediata até confirmar esses termos. |
 
 ---
 
 ## 🤖 Declaração de Conteúdo de IA Generativa da Google Play
 
-O SaveState utiliza a API do Google Gemini como mecanismo do assistente opcional e cumpre os requisitos da política de IA generativa da Play Store:
+O assistente do SaveState gera respostas sobre jogos. Antes da submissão, confirme o gateway e o provedor/modelo incluídos no build e revise a política de IA generativa da Play Store:
 
 1. **Identificação Visual Clara:** Respostas geradas por IA são identificadas como tal e contam com links para guias comunitários verificados (Steam Guides, GameFAQs, YouTube).
-2. **Prevenção de Abuso & Sanitização:** O sistema sanitiza respostas, impõe limites por IP/minuto e orçamento diário global, e limita mensagens a 2.000 caracteres e imagens a 4MB (formatos JPEG, PNG e WebP).
+2. **Prevenção de Abuso & Sanitização:** Verifique os limites realmente aplicados pelo gateway/backend e os limites de tamanho efetivos do app; não use valores presumidos na ficha.
 3. **Isolamento de Prompts:** Textos em imagens são tratados como não confiáveis.
 4. **Alerta de Alucinações:** O aplicativo inclui advertência explícita aos jogadores de que respostas de inteligência artificial podem conter imprecisões e disponibiliza fontes externas verificadas.
 

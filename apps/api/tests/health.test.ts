@@ -14,5 +14,18 @@ describe('Health Check Route', () => {
     expect(body.app).toBe('SaveState Backend API');
     expect(body.version).toBe('0.1.0');
     expect(body.features.aiAssistant).toBe(true);
+    expect(body.features.igdbConfigured).toBe(false);
+    expect(JSON.stringify(body)).not.toMatch(/TWITCH_CLIENT_SECRET|access_token/);
+  });
+
+  it('reports IGDB configured as a boolean without revealing credentials', async () => {
+    const res = await app.request('/health', {}, {
+      ENVIRONMENT: 'test',
+      TWITCH_CLIENT_ID: 'public-id',
+      TWITCH_CLIENT_SECRET: 'never-expose-secret',
+    });
+    const body = await res.json() as any;
+    expect(body.features.igdbConfigured).toBe(true);
+    expect(JSON.stringify(body)).not.toContain('never-expose-secret');
   });
 });
