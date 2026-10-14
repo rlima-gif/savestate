@@ -36,3 +36,8 @@ Thumbs.db
 # Coverage & test
 coverage/
 .nyc_output/
+
+# Build artifacts
+build-artifacts/
+*.apk
+*.aab

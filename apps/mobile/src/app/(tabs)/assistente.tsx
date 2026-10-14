@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AssistantMessage,
   HintTier,
@@ -152,7 +151,7 @@ export default function AssistenteScreen() {
           {
             title: `Buscar no YouTube (${activeContext?.game.title || 'Jogo'})`,
             url: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-              (activeContext?.game.title || '') + ' detonado ' + userMsgText
+              (activeContext?.game.title ? `${activeContext.game.title} detonado ` : 'detonado ') + userMsgText
             )}`,
             source: 'youtube',
           },
@@ -234,6 +233,7 @@ export default function AssistenteScreen() {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        keyboardShouldPersistTaps="handled"
       >
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
